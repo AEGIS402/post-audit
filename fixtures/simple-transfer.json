@@ -1,0 +1,55 @@
+{
+  "chain_id": 1,
+  "tx_hash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
+  "subject_address": "0x5bee9b98669d032352e7eec4b7f4486abe00f897",
+  "raw_rpc": {
+    "eth_getTransactionByHash": {
+      "hash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
+      "from": "0x5bee9b98669d032352e7eec4b7f4486abe00f897",
+      "to": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "value": "0x0",
+      "input": "0xa9059cbb00000000000000000000000044eb044aa553e45c17d029983727abc8b633cb9a0000000000000000000000000000000000000000000000000000000005f5e100",
+      "blockNumber": "0x1659d42"
+    },
+    "eth_getTransactionReceipt": {
+      "transactionHash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
+      "status": "0x1",
+      "blockNumber": "0x1659d42",
+      "gasUsed": "0xf328",
+      "effectiveGasPrice": "0x3b9aca00",
+      "logs": [
+        {
+          "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000005bee9b98669d032352e7eec4b7f4486abe00f897",
+            "0x00000000000000000000000044eb044aa553e45c17d029983727abc8b633cb9a"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000005f5e100",
+          "logIndex": "0x0"
+        }
+      ]
+    },
+    "eth_getBlockByNumber": {
+      "number": "0x1659d42",
+      "timestamp": "0x68d79a00"
+    },
+    "eth_call_token_metadata": [
+      {
+        "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "decoded": {
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "decimals": 6
+        }
+      }
+    ],
+    "eth_getCode_results": [
+      {
+        "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "block_tag": "0x1659d42",
+        "code": "0x01"
+      }
+    ]
+  }
+}
