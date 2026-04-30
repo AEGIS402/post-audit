@@ -6,6 +6,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "api": "hardhat run scripts/api-server.ts --network mainnet",
     "audit:tx": "hardhat run scripts/audit-tx.ts --network mainnet",
     "audit:fixture": "hardhat run scripts/audit-fixture.ts"
   },

@@ -2,14 +2,14 @@ import { erc20Interface, metadataFunctionNames } from "./abis.js";
 import type { RawCodeResult, RawEthCallResult, RawRpcInput, RawTokenMetadataResult } from "./types.js";
 import { checksumAddress, hexToNumber } from "./utils.js";
 
-interface JsonRpcProviderLike {
+export interface JsonRpcProviderLike {
   send(method: string, params?: unknown[]): Promise<unknown>;
 }
 
 export async function collectRawRpc(
   provider: JsonRpcProviderLike,
   txHash: string,
-  subjectAddress: string,
+  subjectAddress?: string,
 ): Promise<RawRpcInput> {
   const chainIdHex = await provider.send("eth_chainId", []);
   const tx = await provider.send("eth_getTransactionByHash", [txHash]);
@@ -23,29 +23,48 @@ export async function collectRawRpc(
     throw new Error(`Transaction receipt not found: ${txHash}`);
   }
 
+  const txRecord = tx as Record<string, unknown>;
   const receiptRecord = receipt as Record<string, unknown>;
   const blockNumber = receiptRecord.blockNumber;
   if (typeof blockNumber !== "string") {
     throw new Error(`Receipt has no blockNumber: ${txHash}`);
   }
 
+  const resolvedSubject = subjectAddress ?? getTxSender(txRecord, txHash);
   const block = await provider.send("eth_getBlockByNumber", [blockNumber, false]);
-  const candidateAddresses = collectCandidateAddresses(tx as Record<string, unknown>, receiptRecord);
+  const candidateAddresses = collectCandidateAddresses(txRecord, receiptRecord);
   const tokenMetadata = await collectTokenMetadata(provider, candidateAddresses, blockNumber);
   const codeResults = await collectCode(provider, candidateAddresses, blockNumber);
 
   return {
     chain_id: hexToNumber(chainIdHex) ?? 0,
     tx_hash: txHash,
-    subject_address: checksumAddress(subjectAddress),
+    subject_address: checksumAddress(resolvedSubject),
     raw_rpc: {
-      eth_getTransactionByHash: tx as Record<string, unknown>,
+      eth_getTransactionByHash: txRecord,
       eth_getTransactionReceipt: receiptRecord,
       eth_getBlockByNumber: (block ?? {}) as Record<string, unknown>,
       eth_call_token_metadata: tokenMetadata,
       eth_getCode_results: codeResults,
     },
   };
+}
+
+export async function resolveSubjectFromTxSender(provider: JsonRpcProviderLike, txHash: string): Promise<string> {
+  const tx = await provider.send("eth_getTransactionByHash", [txHash]);
+  if (tx === null || typeof tx !== "object") {
+    throw new Error(`Transaction not found: ${txHash}`);
+  }
+
+  return getTxSender(tx as Record<string, unknown>, txHash);
+}
+
+function getTxSender(tx: Record<string, unknown>, txHash: string): string {
+  if (typeof tx.from !== "string" || tx.from === "") {
+    throw new Error(`Transaction has no from address: ${txHash}`);
+  }
+
+  return checksumAddress(tx.from);
 }
 
 function collectCandidateAddresses(tx: Record<string, unknown>, receipt: Record<string, unknown>): string[] {

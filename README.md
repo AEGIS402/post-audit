@@ -21,6 +21,7 @@ Required runtime environment variables:
 ```bash
 npm run compile
 npm test
+npm run api
 
 TX_HASH=0x... SUBJECT_ADDRESS=0x... npx hardhat run scripts/audit-tx.ts --network mainnet
 
@@ -28,6 +29,55 @@ FIXTURE_PATH=fixtures/simple-transfer.json SUBJECT_ADDRESS=0x... npx hardhat run
 ```
 
 Use `OUTPUT_PATH=out.json` or pass script args after Hardhat's `--`, for example `npx hardhat run scripts/audit-fixture.ts -- --out out.json`, to write the validated audit JSON to a file as well as stdout.
+
+## API
+
+Start the API server:
+
+```bash
+npm run api
+```
+
+The server listens on `HOST` and `PORT`, defaulting to `127.0.0.1:3000`. Both endpoints return the same validated audit JSON produced by the CLI path.
+
+Audit with an explicit subject address:
+
+```bash
+curl -s http://127.0.0.1:3000/audit/subject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_hash": "0x...",
+    "subject_address": "0x..."
+  }'
+```
+
+Audit using `tx.from` as the subject address:
+
+```bash
+curl -s http://127.0.0.1:3000/audit/from-tx \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_hash": "0x..."
+  }'
+```
+
+## Risk Fields
+
+Every successful audit response includes both `risk_level` and `risk_score`.
+
+- `risk_level`: categorical severity. Allowed values are `low`, `medium`, `high`, and `critical`.
+- `risk_score`: numeric severity from `0` to `100`, where higher means riskier.
+
+Recommended interpretation:
+
+| risk_level | risk_score range | Meaning |
+| --- | ---: | --- |
+| `low` | `0-24` | Normal-looking activity or only informational findings. |
+| `medium` | `25-59` | Suspicious or user-confirmation-worthy activity without strong loss evidence. |
+| `high` | `60-84` | Strong risk signal, high-value exposure, dangerous approval, or compliance-sensitive interaction. |
+| `critical` | `85-100` | Severe loss pattern, extreme value imbalance, missing slippage protection on harmful swap, or urgent incident candidate. |
+
+The LLM returns the final level and score, but the local schema enforces `risk_level` membership and the `0-100` score range.
 
 ## E2E Example
 
@@ -75,30 +125,31 @@ Validated E2E output:
 {
   "risk_level": "low",
   "risk_score": 5,
-  "one_line_summary_ko": "주체 주소가 100 USDC를 정상적인 ERC20 전송으로 보냈음",
-  "executive_summary_ko": "해당 트랜잭션은 주체 주소가 USDC 토큰 100개를 다른 주소로 전송한 단순 ERC20 전송이며, 성공적으로 처리되었습니다. 의심스러운 행위나 비정상적인 패턴이 발견되지 않아 위험 수준은 낮습니다.",
+  "one_line_summary": "Subject address transferred 100 USDC to another address; transaction succeeded with no ETH value transferred.",
+  "executive_summary": "The transaction is a standard ERC20 transfer of 100 USDC from the subject to 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The call succeeded, no ETH was moved, no approvals were changed, and no red flags are present in the provided evidence.",
   "findings": [
     {
-      "type": "simple_erc20_transfer",
+      "type": "erc20_transfer",
       "severity": "info",
-      "title_ko": "단순 ERC20 전송",
-      "description_ko": "주체 주소가 100 USDC를 다른 주소로 전송했으며, 트랜잭션은 성공적으로 완료되었습니다.",
+      "title": "Standard USDC transfer",
+      "description": "Subject sent 100 USDC to address 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer succeeded and matches the expected ERC20 Transfer event.",
       "evidence_refs": [
         "flow#0"
       ],
-      "confidence": 0.99
+      "confidence": 1
     }
   ],
   "benign_explanations_to_check": [
-    "정상적인 토큰 전송",
-    "사용자 간 결제 또는 교환"
+    "User-initiated payment or settlement",
+    "Routine fund reallocation between wallets"
   ],
   "missing_evidence": [],
-  "recommended_actions_ko": [
-    "현재로서는 추가 조치가 필요하지 않음",
-    "정기적인 모니터링을 유지"
+  "recommended_actions": [
+    "Continue monitoring the subject address for unusual patterns or larger transfers.",
+    "Verify that the counterparty address is known and trusted if required by compliance policies.",
+    "Consider adding internal call tracing for future high-value or suspicious transactions."
   ],
-  "final_assessment_ko": "이 트랜잭션은 정상적인 ERC20 토큰 전송으로 판단되며, 위험도는 낮음"
+  "final_assessment": "The transaction poses low risk. It is a normal ERC20 token transfer with no anomalies detected."
 }
 ```
 

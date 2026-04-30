@@ -118,30 +118,30 @@ describe("post-audit payload builder", function () {
     const validOutput = {
       risk_level: "low",
       risk_score: 12,
-      one_line_summary_ko: "100 USDC 단순 전송입니다.",
-      executive_summary_ko: "감사 대상 주소에서 recipient로 100 USDC가 전송되었습니다.",
+      one_line_summary: "This is a simple 100 USDC transfer.",
+      executive_summary: "The subject address sent 100 USDC to the recipient.",
       findings: [
         {
           type: "simple_erc20_transfer",
           severity: "info",
-          title_ko: "정상적인 ERC-20 전송",
-          description_ko: "감사 대상 주소에서 100 USDC가 나갔습니다.",
+          title: "Normal ERC20 transfer",
+          description: "The subject address sent 100 USDC.",
           evidence_refs: ["flow#0"],
           confidence: 0.9,
         },
         {
           type: "unsupported_claim",
           severity: "high",
-          title_ko: "근거 없는 주장",
-          description_ko: "존재하지 않는 evidence ref를 참조합니다.",
+          title: "Unsupported claim",
+          description: "This finding references an evidence ref that does not exist.",
           evidence_refs: ["missing#0"],
           confidence: 0.5,
         },
       ],
       benign_explanations_to_check: [],
-      missing_evidence: ["debug trace는 제공되지 않았습니다."],
-      recommended_actions_ko: ["recipient 주소를 확인합니다."],
-      final_assessment_ko: "제공된 증거 기준 low risk입니다.",
+      missing_evidence: ["Debug trace was not provided."],
+      recommended_actions: ["Confirm that the recipient address was intended."],
+      final_assessment: "The provided evidence supports a low-risk assessment.",
     };
 
     const parsed = parseAndValidateAuditOutput(validOutput, payload);

@@ -139,8 +139,8 @@ export interface AuditPayload {
 export interface AuditFinding {
   type: string;
   severity: string;
-  title_ko: string;
-  description_ko: string;
+  title: string;
+  description: string;
   evidence_refs: string[];
   confidence: number;
 }
@@ -148,13 +148,13 @@ export interface AuditFinding {
 export interface AuditOutput {
   risk_level: RiskLevel;
   risk_score: number;
-  one_line_summary_ko: string;
-  executive_summary_ko: string;
+  one_line_summary: string;
+  executive_summary: string;
   findings: AuditFinding[];
   benign_explanations_to_check: string[];
   missing_evidence: string[];
-  recommended_actions_ko: string[];
-  final_assessment_ko: string;
+  recommended_actions: string[];
+  final_assessment: string;
 }
 
 export interface BuildPayloadOptions {
