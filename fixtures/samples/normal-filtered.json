@@ -1,0 +1,874 @@
+{
+  "chain": "ethereum",
+  "input_path": "fixtures/samples/normal.json",
+  "input_total": 150,
+  "kept_total": 12,
+  "dropped_total": 138,
+  "error_total": 0,
+  "signal_type_counts": {
+    "erc20_approval_change": 13
+  },
+  "signal_severity_counts": {
+    "medium": 13
+  },
+  "dropped_by_category": {
+    "erc20_transfer": 50,
+    "erc721_transfer": 50,
+    "swap": 38
+  },
+  "kept": [
+    {
+      "tx_hash": "0xf2b64acd75070400203a5e6216b4a259e3f633a8de7c55396ee47b5994a7f6af",
+      "category": "swap",
+      "subject_address": "0x7942262A7A5637E6Eb0eEC9B91B55eC232141F87",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xfd7ff3fb964b90c518fcd28d3d21817a72d561d5bb501449ea21251b60be9767",
+      "category": "swap",
+      "subject_address": "0xaFfcf722EB28f4C353Cc8718af3BAB09DaBf6264",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xe2b41a9c0b8e34da678513c468e9a64e907efb94d2fbdc99a09841594e478ef2",
+      "category": "swap",
+      "subject_address": "0x6DcD09c564ba203d4B2861166B6D429ad0122B8d",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x93129d21f13c376dd74081be593a0525ab4f2b80ed599180c15d4de6a2df2cb7",
+      "category": "swap",
+      "subject_address": "0xe3C1aDf6f2996C428A83F5542B16AB0AF9B814B4",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x570b696906f22c3c2c45fba3988a1bf054be62046aa72db25c250e77963298e2",
+      "category": "swap",
+      "subject_address": "0xCf0498672763DD9DEbCF02D1F28B699593241129",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x46987bf616ad9671449e22b6e667d513745daa9c81a00f8299e3e87cf6c25b13",
+      "category": "swap",
+      "subject_address": "0xCc9ed84DcAc044fDcBF72d3577C105099A008084",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        },
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x0c9f35dae510902ae5561deffb6b0759f6de9eebc0dfea7dc0671cc0079a10ca",
+      "category": "swap",
+      "subject_address": "0x8424c4B7B7105b06A6a6B59d6f527F19B70E0320",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xb8960febe660e3581a1f53895f0281281b3e49d8e34ea91f442b69b6caabb722",
+      "category": "swap",
+      "subject_address": "0x7942262A7A5637E6Eb0eEC9B91B55eC232141F87",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x6d0dfd97acb684dbb2accebf090157db21f0a4c017f7b92b022946f0e2d99926",
+      "category": "swap",
+      "subject_address": "0x6031E85c1D95c172fC65930E058BB117F82754cc",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xe97fe4dd14caafd1e50316c00358af712beea49c6d7a1791209135866f619c81",
+      "category": "swap",
+      "subject_address": "0x2f62Ff273Be714e7DF23AFD5a54FD8F7570352BD",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x79748c846162d6b2b240db0096e00218c518475bb50103796641144cdfa19165",
+      "category": "swap",
+      "subject_address": "0x09cC55546d820491C77c29CcE5FdcD42128C8ee1",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x9de0fb805efcf4560bfb9080154a52d8e89258fde6e65d88475339c261a556b4",
+      "category": "swap",
+      "subject_address": "0xb8F0665d7B75AF3884804cfA302c0A5063440afC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "erc20_approval_change",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    }
+  ],
+  "dropped": [
+    {
+      "tx_hash": "0xd3d20561b8a25ba99200d691e07008ce0649c0514890f70ec055bd53f9197f13",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xb38f2576067884c6ec7844852d20b2ee495ff79eb5210261d8dd5c0873dc05ec",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xdc9805a0bb040d457d7367d3e6d5709752d563e71711614884bb91f07db3c86a",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x8cbf2307d4c47e5fd84f698c5336a9bb859de032156fc2002c5ab35d8b317326",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xef51eb88e165d4312fcca8d756b74c1156c8635b13182c58920023390edf4a06",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xe88027c876fb0fbe9e93562f1428c1364035edb4a979a4bd63c751490c4bd374",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x50abe25e68e2515b4b3ca643acf0df45649982cda83492ee6816a2223ce4fc35",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x8858cc26c31401787e4cc9c7b5c263abe9dce7413adc09d4cc135bf036824cac",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x0f4faaaca7758bcf22f8e18f5af233de3550934f7e2cd8206133495b8cd1241b",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x85f37d8610eb4845ed5461c921474e49dc1282087285682eb5e94b167ef5507c",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x1756f73003b0dfc2ed5bb8ff0b19e47ccee636ba313ee16907174f043c56e6ee",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xe74b4a0162b3eb1be1df2bb693f49f2d65270a85b79f538d9de70bb9f00cd3b1",
+      "reason": "no_rule_signals",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xb9fa4143fdfb5e0d1c3071c100b96d5d2121ae9744daf6ca3577bd382316fafd",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x76c59a74a597acfb7c630192c9cd3c64de30d8d81f3cd554de3f420a8bd2557b",
+      "reason": "no_rule_signals",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xe767fe67ee1fdf89511c1e34b32b4c0dd0e5591dabb74d4f806660cb8aa83efe",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xe99e98e1cde4070c26e3863343352a0425aa03d2c81d7c08f6b5ffd930ef39b9",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xd22745b7f4e5288ace7515f36ff8efc430c0778960fb7cc681c06859c8e60239",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x8b7236cac9751bb3bc71845478092b8f527b2c2c40ce9be42bfcd7f5641aef9e",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x987c92c4c307b21ac51a06ea3a6f72cdb20d1107c4fb9f469e524755475911c9",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x78dce4acba290e08698f3524e617f8350c91b0e2d9cc94dae385f4f4ddf6f017",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xbe5ed0fc8373a8e4fd1e9f77daa07680fe521b4c7a286aad7ccb986b3b05e0e7",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x38d49a529256ee545aca40941934e741e8315a8846fbd2de7cade6ea8d08ff94",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x1a75182d891c3e29e2406318751dd56f1b92d9f1178bbb4f9ef39549615f9fe3",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x2a5ec25147713ae23624faf82ed69718f1d25bb146b07d2487d9f719546dd496",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xa6a4c0d01e523c0dfcebaaae544d0b05c73cf683427e9cd1464a8566e4ad3936",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x171b83cdb7f292846be3e81ff70702b63aeb79a5e08e3b1660e85370792b7d29",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xb3dbd9f912a7a4bbf143db74a1caa00a4b80e10f193d6e5eb45d51b8e4a1544d",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x54245fe2c9f7c7c55999eff91c8f8eefa2145bd1ee2f0cd1823ab3ecea781582",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x1542d9f70971a177c51ddbe968c6e8e5d7d0d07719b9c35f98f668d904a26fba",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x79c2406004912322ef2f3e7f2c42780a3ed31829bdb4b331a51d73fe4a7f3546",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xeb91423e381d5db38d2ef40b7f4d28279b679d4802a27f790c04c431bec456b5",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x06f13e83576a10c2ae51d0d3db749120a8e2d7d64ec1748d55c1bd6cab7cdd84",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x893aec1dcffb1a5bb7f5904b984ee099677a87e8bfd43833980a12e05a9cce9a",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xfdcdedbb879cecfeb02504b088a2abd137764fdb239aaca0018e1592bed1afdd",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x86d53bc48242c00c8e3e15ea9e0d432ab2a72ef46352e89b6fe3f135bede06dd",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x4e53f7ccbc60fb81d974fbf71701de6a5dec478480e8c4c083a9a7d21894092b",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xf4019b29ee2f6fcbfe1d391563bf3afff964eb4f0a953b944f0f90bd88084f16",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xd7fc46389000ead482c1398da00cd3bc7ed843378da556700d250b996bc9e54f",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xfe6c6abd18cc718a6bf17cb02c531af21b18589ec48e905937b27a5baf37e21f",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x2f4a7ffae9eea48048c7e4263e8f71d9ceda71e682233c2e1cc1798d22804e0a",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x455f3442348cc08cf868c3238f2cb79384857fbab00fc33b64deb949a5f8b2c8",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x734b57c0cfe4b6cc8dd334968bb444f51474fe749bc895ba90965d9f0e14c0e6",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xea1a87a9f670c37ce352a9f6f38d85ccaa4b4a417347015701c988afba74f698",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x7a25a8848cf3f2ee899ccd8b87c8ca8afd040e6dcf72b3fc11999e6a25d5232a",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x4c51ec7f6da232bf541240a0b1d5b524119665d9ba6b622e8ea2149818cd1d8e",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x05286d18e16286e06fc7d487f33e8aaf88b89c9baf6658d8c7556b964c05ab02",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x44636448e1fa994bcde00a1625034ba66f54d0d19f0dc1ef6c234a8eb044d5fb",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x7fa4a9b0709ad2d5fb2760571dd78a9260b57fc88c9c950d3eff1997e50aff72",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x4f169471d66e24845b53263e18843fb98769a5d40fecba13190c940d331992e2",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0xfa5a89bb2e0551e3328709daf465e4c211e22d4dcaccdb7fe419d957bd9a4059",
+      "reason": "info_only",
+      "category": "erc20_transfer"
+    },
+    {
+      "tx_hash": "0x2287701b01cbe8cbfa4570ad93581962b1dcfcfc1a2b0d6134ad324ad84e3ef0",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x6f1ecf9893e5a3b82119da41a6aab092236f90ff3e96fb5e885d60d1467db600",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x02d8c559775cb638b7c3bc390ede8fa9b5a312acb75bd810087d6da771aa2f91",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x0219bd89da54366e5b2d46a976aca76540c4fc71a2ed9aafb4b821836b0e990a",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xdd873cffdd3ece99646fb357ba35f863921f766b43feef25872235390c9b5360",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x81b5e0c7361887b9c3ff72b649bc7bddac38df8d3fe3538aa441910f1a5aa238",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x697d29bbcd8fce696782dc59e0434b1404574283cb0b59f14f03fe41792274df",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xa9f0149e2f2e8d506017c4f0bb35927719aa248bbde96c7315f4cd6e6dd7cd03",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x9c0089140d0b638354af1e84b0548496d421b8c7be3deab2463523be346c4f94",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xfabd4911bdee4c5c8ffc2a7e3d96fa42f972d2a72cd837899cb019daba571db8",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x4daa6de2dc15d8ceb30f4b58af5a04507974c9f5a4427074cae47c3cffa13b8e",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xb4209186d3ecaaa8e1107f648c519beabef258b14e3b0fb1b3bd364fbf3bae41",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x10e2dbcaee67abbc2c0017c48d94685c931fa93ef5196881ffa1d08256b2b136",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xf9a38652f6584f900276cfc9bd816773627ce04929daceeea5bf151f47616178",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x756c9838eca03e617012bf5092ba55bdd4cc770f415df4f036a37912d91c5ce4",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x347cff716589797ffa940a304ded1efe5e4b68085337c696a99af8d3d6816b95",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x3728d514f22b6c40d0f53f5402b205db63cc7572372b7dee5d48561f0091cfc1",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x831ab3d87b00f43d230d642e51a193e583f41b7dc4aa08123da67429f072d310",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x51c20ba466fe1dfa27b55813a6b0e4870dcb85032d268e92121d7c933e6b27e8",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x1fdaba96e41f5965effa8edcb3dee6f06a163d8bf5cefcac82be0e49e74ef63c",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xf9e0e66f94ad10cfe007f176c118209c589783adebc0ca8e1de5483777437229",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xb38efcfc589a4d60c7b81a90f4aead3f72f168a122150dacd17133e3a69d613b",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xf0d0f3a29e82af85533c48f8d7677022d4955743dd3b955c661ecee4ef5c1236",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x746b62f0a016e2f8a0e4564a843282fae8a6a09204ec362852c423ac358d62bd",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x498692bf7b5f5140197c0433432dff2374e4c75acb9b9802e5d7f41f685982b7",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xd9abee5dccd8f997ab7e927ca2c4400b06ab13da5d1efae5f55046872b7f2aef",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x0f44a2899b9e4080523c10f9b28dee3aa47df4a3cf4e8acc6f3aa0775f4212b3",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x8703e39eca2f7fbd7a6c4394c1cdc879f91e4f496ecea3210c625d38686ce936",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x12de4e61131e8dbf9199530b4bd8c4b726943d1ce64110fae67deca9b8858a83",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xe093943880c4db1113e20f365be3b244a88f766673561f6538b2e4336276a735",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xaf27e01a8f210667c15316b659fa19ec34e1803554979b82d830398345020d7b",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xffe753f7c646999e041b07b6728804aa862867e4cd95fbd3451ad9013109eac1",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x3e77ffd3088335a2e1fd05a0e9a01a9f04eed45ca66ec4dcb49713fe88f3d58e",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xa80a9b11a09f1aa930ab74e3db8a183efd89713d0f1cb0b6c01cf54a7d71196e",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xed18525f4e170cc90e552955502d5960342ab0e08fccfe9437010968103c67d8",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xc3c047fdba854b0dcb6214162a99ca9ca170e78413bd2679c34203b4e5463503",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xeb86a0a4bc986d264bb21fbba69061c28ff4e72bf09dfc5aa3bfc0e33515fb5e",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xaa0962933b7440de099db9baba4b32f9bedcf627670e94c2a0a661fa6d1585c2",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x8cde7e6c742ba48ca66fa980b5dcd08cbc3370d51cf2d6ffbe39582f2b14ec45",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xc0cb1578cff3a2991182d1aaef880a4f5b44057e8f61743b1f8e19718d144868",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x59c06b28695fa3327ea41daa00212a24cd070ee33eebcd34a3730bdd4702f85f",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x4d36252c451204ab7ad5655381bdac27421776d7af248d595a955ec9023e4009",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x25e3eb47044a90f649af192f54cc89850b328b780528de2eb04cf267c41854df",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xeef1276be098521dc8403832abe8fb9462182bb719f2a487b17d6bdb66984d08",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x32bae4f255ddb15a225dd4377e2a70716e9818aca0c7e2dad7d377b9266bf11f",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x7268571fde174c0990598bd0a1fecb4d01a07ef3bf4a61842966153cee805906",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x57b4efd10913f38e365605046f65d31c6c8d3593a2e3729a95363ae33e8117d1",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xf5df7d4233ed6e3c876d4ac67a1ed5a68eb1fee8456befc79b94c2501ebc7812",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x0a719bcd78276398885ac0e0bdfca829f152c78d97704e6cd514591fdd454a46",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0xc5d8a465c6ced13e9b23276c2c3d713f89b96fb3a4e5ea46d0cb2077c169cf6f",
+      "reason": "no_rule_signals",
+      "category": "erc721_transfer"
+    },
+    {
+      "tx_hash": "0x9827fb6b1431cc5a162bbada4b568707b1e0e7448aec08e5b3a50ae039e32f0a",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xffa8eb843b12a5399e0fb470ce3d376f9dd555dcf4cce6940a61566333a14da3",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x47ff8621e5547c1cdf63f115bb933eec47c31f43562b3c180119bf0184c1e13a",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x2905ef6689fca8ffdf412617e8e272b3ba4d98c841dd438270caf76740aa7ca5",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x7bc10a710884cb8c9d674f537a214f4fd9d0cb890fd1d9490b4b4a5d20a7aaab",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x94cb943da7ca3aab172a3017389a884e2f8684b83c74d10b469b0b21b1a263d3",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xf5ca4e51711b97e3a7cf3d61530ccd5e9d91ed06e644bbc3e213f1f33e4bbad6",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x2248675886be2797d97240bf56c33717dbc734b27264ca9fd8c989ce42d32137",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xc85ce2aa7f79110f6ba2375e4262f7aa7b33add59c6c276822edfc628aa58afe",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x51513e56664b0d55fa90fbd93a7cdc0a82a300d32460c84998c180da4fb50868",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x7c0f0892d06338cf46e8236f61f2ba07643f0b06efb1c3fa75128050ff6f39a1",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xd138ba2901d914ecc15832a8a4fd7a84802e597ef360df5f059a25838f82c9ae",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x3b6b198a4575cc9029ef7a9c43a2b017d0b6fe9b30ecc2107e15d6c0cb052e0d",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x35e7cf99d532c4aae337b517ed1124e532809b25d1313b582ffcd350e1469f74",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xf779e8b7615fe3f46ff4b85a5ada6698107670a1001adefa190f707b3acce439",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xb80ee719dccd3e4c4f5d31a8a3896fb6b776ce8be7f8a02c0d53ee79f4eecfc4",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xb941b28cb244306597aa5ff75204b5a0caa8fc41568d2acbf35b631d61940569",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xe21af4b022367eb9b24eb42d48de4bc8af7921aa26df52f34387c6d2c347e53c",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x7512f63b763887529052a238077879e17f25a9a62eb74ab2b09c1bf4a0beaaed",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xcd47dda404adecbd055bc6fc139f7a211f1e0fce53832a4b91ae1c2355522eec",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x17b9cf96ded9907af4f480537853fd3d484dc0a8e63cf0b3f71b720bcb6968ab",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x2464d4fca423888d5f5cace13caf491ea3d03ef93cc916ef0e10c4044e52beb3",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x4fb7399f0e1e48175997545e106c2170157b5a4621eb4739b8049744b93256b7",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x683edf1606955983734c3e89e041f277920a88c2965396664a094903ca9af286",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x73870bd05e63c8293bfbb2eb7ba3f70c3e2e8107f1329e3aedaca1984e641567",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x22a8c2b7d9583c6f2735899465834c267857ec3df2994d7e5008f2d01d11c687",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xffeb20d4806289cbbb1b3742a7b707244dc3ea59a24f4be60f8c6860e869d9bc",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x533b5b132a1a7c0570518282652217fa2b8329d8bc4471871a3701f5f5a5ff8b",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x80a8affc27bda236f96f0b80fef5165e4fdd8357ea7ffb87e075c0835ee6f760",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x28a00b9c4b96f6b844af22ad25d3867ecffa0bb8c9731e0695ceb6b7821304fb",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x8dcfb0a2d02b9be2e81856cb09534641ea6cba2dd4a76ba85a26a455f081c268",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x3cb30030a7f25650e1240d6863606edb2777ae98e408bdce14d7b3688d11c8b1",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xa00984a710c73301e479461c3da2beb17b009b6d4b266e1e37af6e42ab00a95b",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xb736c119d25a95e9dfbc50626fae5972b8812f09d6c9f88f4b006430d8e587ce",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x07303247444b3d0004e0911d2b49b9a9a80100ce1fb3b8c519c0b3963ba97dc2",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xf3c40689efb1edf70eaf1f9d0790d0288a431e357f914638c6d8ae0ce830c5ee",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0x31cda1eafbd1f4764ba68871a23e563d1ccfddf67251fd6fa499a722760896b5",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    },
+    {
+      "tx_hash": "0xeeb5f548d5a07642222cc9b31b5083778430d1d868afa38192d605cbbfb20188",
+      "reason": "no_rule_signals",
+      "category": "swap"
+    }
+  ],
+  "errors": []
+}
