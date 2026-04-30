@@ -81,24 +81,6 @@ npx hardhat run scripts/aggregate-samples.ts
 
 다른 EVM 체인(Base/Arbitrum/Optimism 등)으로 가려면 `RPC_URL` + `CHAIN_LABEL` 환경변수만 바꾸면 됨. 스크립트 자체는 체인 가정 없음.
 
-## 솔직한 한계 / 알아둘 점
-
-1. **Ethereum 메인넷만 수집함**. 요청에는 "다양한 EVM 체인"이라고 적혀 있었지만, RPC URL을 받은 게 메인넷용 publicnode뿐이어서 메인넷으로 진행. L2 확장은 RPC URL만 바꾸면 됨.
-
-2. **공용 RPC(publicnode) 사용**으로 속도가 느렸음 (분당 약 5–15블록 처리). 유료 RPC 있으면 훨씬 빠름.
-
-3. **`missing_slippage`는 자동 스캔에서 0개**. 슬립피지=0은 통계적으로 희귀해서 600블록 안에 안 나옴. README의 예시 1개로 대체. 더 필요하면 Eigenphi 같은 데서 sandwich victim 추가 큐레이션해서 채우면 됨.
-
-4. **큐레이션의 "이상" 정당성은 외부 분석글에 의존**. 즉, 현재 파이프라인의 룰 시그널만으론 다 안 잡힘:
-   - Phishing drainer tx는 단순 `transferFrom` 한 줄이라 파이프라인이 정상으로 보임 (외부 라벨 없으니 당연)
-   - 큰 해킹 tx (Euler 등)는 커스텀 셀렉터라 `decoded_call`이 `unknown`으로 떨어짐
-   - 단, ERC20 Transfer 이벤트들은 다 디코드되니까 LLM이 흐름 요약은 가능
-   
-   → 오히려 이게 평가에 좋음. "외부 라벨 없을 때 LLM이 이걸 정상으로 보는지, 의심 신호를 잡아내는지" 테스트 가능.
-
-5. **WebSearch가 잘린 해시 반환하는 경우 있었음** (0x + 63자 등). verify 단계에서 not_found로 자동 제외되도록 처리.
-
-6. **한 번 더 강조**: GPT Pro든 Claude든 LLM이 tx 해시 환각 매우 빈번. 이 스크립트들은 검증 단계가 핵심. 큐레이션 30개 모두 RPC 재확인 통과한 것만 들어가 있음.
 
 ## 큐레이션 출처
 
