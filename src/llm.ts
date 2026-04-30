@@ -11,6 +11,11 @@ Every finding must include evidence_refs.
 If evidence is missing, say so explicitly.
 Return only valid JSON.
 Use English for every human-readable field.
+Use plain ASCII characters only.
+Do not claim that an address, token, contract, or counterparty is legitimate, trusted, phishing-related, or not phishing-related unless that label is explicitly present in the structured evidence.
+Do not claim that gas usage is normal or abnormal unless the payload includes a rule signal or explicit comparative evidence for gas usage.
+Do not mention phishing, reputation, trust, legitimacy, or gas assessment in summaries, findings, recommended actions, or final assessment unless explicit evidence for that claim is present.
+If rule_signals is not empty, include at least one finding grounded in a rule_signal or the evidence_refs used by that rule_signal.
 
 The JSON object must have exactly these top-level fields:
 risk_level, risk_score, one_line_summary, executive_summary, findings,
@@ -44,7 +49,8 @@ Field requirements:
 - findings must be an array. Each finding must include type, severity, title, description, evidence_refs, confidence.
 - recommended_actions must be an array of English strings, never a single string.
 - benign_explanations_to_check and missing_evidence must be arrays of strings.
-- evidence_refs must only use ids present in the provided payload.`;
+- evidence_refs must only use ids present in the provided payload.
+- if a simple_erc20_transfer signal exists, include an informational finding for that transfer.`;
 
 export interface LlmOptions {
   baseUrl?: string;

@@ -159,6 +159,38 @@ describe("post-audit payload builder", function () {
     ).to.throw();
   });
 
+  it("normalizes model output to ASCII and score-consistent risk levels", async function () {
+    const fixture = JSON.parse(await readFile("fixtures/simple-transfer.json", "utf8")) as RawRpcInput;
+    const payload = buildAuditPayload(fixture);
+    const parsed = parseAndValidateAuditOutput(
+      {
+        risk_level: "high",
+        risk_score: 90,
+        one_line_summary: "High\u2011risk swap with approx loss",
+        executive_summary: "Uses a non-breaking hyphen in high\u2011risk wording.",
+        findings: [
+          {
+            type: "risk",
+            severity: "critical",
+            title: "High\u2011risk finding",
+            description: "Approximately 97 percent loss.",
+            evidence_refs: ["flow#0"],
+            confidence: 1,
+          },
+        ],
+        benign_explanations_to_check: [],
+        missing_evidence: [],
+        recommended_actions: ["Use non-zero slippage protection."],
+        final_assessment: "Critical score range should override the model level.",
+      },
+      payload,
+    );
+
+    expect(parsed.risk_level).to.equal("critical");
+    expect(parsed.one_line_summary).to.equal("High-risk swap with approx loss");
+    expect(parsed.final_assessment).to.equal("Critical score range should override the model level.");
+  });
+
   it("keeps all generated payload evidence refs resolvable for JSON fixtures", async function () {
     const fixture = JSON.parse(await readFile("fixtures/simple-transfer.json", "utf8")) as RawRpcInput;
     const payload = buildAuditPayload(fixture);

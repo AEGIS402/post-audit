@@ -79,77 +79,143 @@ Recommended interpretation:
 
 The LLM returns the final level and score, but the local schema enforces `risk_level` membership and the `0-100` score range.
 
-## E2E Example
+## API E2E Examples
 
-The fixture E2E path reads raw RPC-shaped input, builds the audit payload, calls the configured LLM endpoint from `.env`, validates the model JSON with the local schema, and prints only the validated audit output.
+These examples use the API server path: HTTP request -> live RPC lookup -> deterministic audit payload -> configured LLM endpoint -> local JSON schema validation -> JSON response.
+
+Start the server first:
 
 ```bash
-FIXTURE_PATH=fixtures/simple-transfer.json OUTPUT_PATH=/tmp/post-audit-e2e-readme.json npx hardhat run scripts/audit-fixture.ts
+npm run api
 ```
 
-Input fixture summary:
+### Normal Transfer
+
+Request:
+
+```bash
+curl -s http://127.0.0.1:3000/audit/subject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_hash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
+    "subject_address": "0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897"
+  }'
+```
+
+Request summary:
 
 ```json
 {
-  "chain_id": 1,
   "tx_hash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
-  "subject_address": "0x5bee9b98669d032352e7eec4b7f4486abe00f897",
-  "raw_rpc": {
-    "eth_getTransactionByHash": {
-      "from": "0x5bee9b98669d032352e7eec4b7f4486abe00f897",
-      "to": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "value": "0x0",
-      "input": "0xa9059cbb..."
-    },
-    "eth_getTransactionReceipt": {
-      "status": "0x1",
-      "logs": ["ERC20 Transfer log for 100 USDC"]
-    },
-    "eth_call_token_metadata": [
-      {
-        "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-        "decoded": {
-          "name": "USD Coin",
-          "symbol": "USDC",
-          "decimals": 6
-        }
-      }
-    ]
-  }
+  "subject_address": "0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897",
+  "expected_decoded_behavior": "100 USDC ERC20 transfer out from the subject"
 }
 ```
 
-Validated E2E output:
+Example response:
 
 ```json
 {
   "risk_level": "low",
-  "risk_score": 5,
-  "one_line_summary": "Subject address transferred 100 USDC to another address; transaction succeeded with no ETH value transferred.",
-  "executive_summary": "The transaction is a standard ERC20 transfer of 100 USDC from the subject to 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The call succeeded, no ETH was moved, no approvals were changed, and no red flags are present in the provided evidence.",
+  "risk_score": 0,
+  "one_line_summary": "Standard ERC20 USDC transfer of 100 USDC from subject address to counterparty.",
+  "executive_summary": "The transaction 0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3 is a simple ERC20 transfer of 100 USDC (6 decimals) from the subject address 0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897 to the recipient 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer succeeded, consumed 62,248 gas, and no value in ETH was transferred. No suspicious patterns or rule violations were detected.",
   "findings": [
+    {
+      "type": "transfer",
+      "severity": "info",
+      "title": "ERC20 USDC transfer of 100 USDC",
+      "description": "Subject address 0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897 sent 100 USDC (token 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) to 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer was successful and recorded in the transaction receipt log.",
+      "evidence_refs": [
+        "receipt.raw.logs[0]"
+      ],
+      "confidence": 1
+    }
+  ],
+  "benign_explanations_to_check": [],
+  "missing_evidence": [],
+  "recommended_actions": [
+    "No further action required."
+  ],
+  "final_assessment": "The transaction is a normal ERC20 token transfer with no indicators of risk."
+}
+```
+
+### Anomaly Detection
+
+Request using `tx.from` as the subject:
+
+```bash
+curl -s http://127.0.0.1:3000/audit/from-tx \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106"
+  }'
+```
+
+Request summary:
+
+```json
+{
+  "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106",
+  "subject_source": "tx.from",
+  "expected_decoded_behavior": "USDC/USDT swap with severe value imbalance and zero minimum output"
+}
+```
+
+Example response:
+
+```json
+{
+  "risk_level": "critical",
+  "risk_score": 92,
+  "one_line_summary": "Uniswap V3 swap of ~220,806 USDC for ~5,273 USDT with 97.6% loss and no slippage protection.",
+  "executive_summary": "The subject address swapped 220,806.389669 USDC for only 5,272.998058 USDT via Uniswap V3's exactInputSingle function. The transaction set amountOutMinimum to zero, providing no slippage protection, and resulted in an extreme value imbalance (output/input ratio approximately 0.024, ~97.6% loss). Two ERC-20 Transfer events confirm the outflow of USDC and inflow of USDT. The combination of a critical loss and missing slippage protection indicates a high-risk transaction.",
+  "findings": [
+    {
+      "type": "extreme_value_imbalance",
+      "severity": "critical",
+      "title": "Extreme value imbalance: massive loss on swap",
+      "description": "The subject sent approximately 220,806.389669 USDC and received only 5,272.998058 USDT, representing a ~97.6% loss (output/input ratio 0.0239).",
+      "evidence_refs": [
+        "flow#1",
+        "flow#0"
+      ],
+      "confidence": 1
+    },
+    {
+      "type": "missing_slippage_protection",
+      "severity": "critical",
+      "title": "Missing slippage protection in Uniswap V3 exactInputSingle call",
+      "description": "The decoded exactInputSingle calldata has amountOutMinimum set to zero, providing no protection against price slippage.",
+      "evidence_refs": [
+        "tx.raw.input"
+      ],
+      "confidence": 1
+    },
     {
       "type": "erc20_transfer",
       "severity": "info",
-      "title": "Standard USDC transfer",
-      "description": "Subject sent 100 USDC to address 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer succeeded and matches the expected ERC20 Transfer event.",
+      "title": "ERC-20 token transfers observed",
+      "description": "Transfer of 220,806.389669 USDC from the subject to the pool and receipt of 5,272.998058 USDT from the pool to the subject.",
       "evidence_refs": [
-        "flow#0"
+        "log#1",
+        "log#0"
       ],
       "confidence": 1
     }
   ],
   "benign_explanations_to_check": [
-    "User-initiated payment or settlement",
-    "Routine fund reallocation between wallets"
+    "The user intentionally set amountOutMinimum to zero, accepting any execution price.",
+    "The transaction may be part of a larger strategy (e.g., arbitrage) where the apparent loss is offset elsewhere."
   ],
   "missing_evidence": [],
   "recommended_actions": [
-    "Continue monitoring the subject address for unusual patterns or larger transfers.",
-    "Verify that the counterparty address is known and trusted if required by compliance policies.",
-    "Consider adding internal call tracing for future high-value or suspicious transactions."
+    "Review the user's intent and confirm whether the zero minimum output was deliberate.",
+    "Advise adding a reasonable amountOutMinimum to protect against slippage in future swaps.",
+    "Monitor the address for similar high-loss swaps and consider flagging for further analysis."
   ],
-  "final_assessment": "The transaction poses low risk. It is a normal ERC20 token transfer with no anomalies detected."
+  "final_assessment": "The transaction exhibits a critical risk due to an extreme loss on a token swap and the absence of slippage protection. While the transfers themselves are standard ERC-20 events, the combination of a near-total loss and missing safeguards warrants a high-severity alert and further review."
 }
 ```
 
