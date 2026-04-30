@@ -1,0 +1,1501 @@
+{
+  "chain": "ethereum",
+  "input_path": "fixtures/samples/abnormal.json",
+  "input_total": 130,
+  "kept_total": 101,
+  "dropped_total": 29,
+  "error_total": 0,
+  "signal_type_counts": {
+    "transaction_failed": 50,
+    "unlimited_erc20_approval": 50,
+    "missing_slippage_protection": 3,
+    "extreme_value_imbalance": 1
+  },
+  "signal_severity_counts": {
+    "medium": 50,
+    "critical": 4,
+    "high": 50
+  },
+  "dropped_by_category": {
+    "hack_exploit": 25,
+    "hack_recovery": 1,
+    "sandwich_victim": 1,
+    "phishing_drainer": 1,
+    "mev_arbitrage": 1
+  },
+  "kept": [
+    {
+      "tx_hash": "0xfb5077792da70c40930642c08e419ff04b23c123c00441caf0b7619934d9aeb1",
+      "category": "failed_tx",
+      "subject_address": "0x03ea73A552F44a256c3fd8E2Ab7564513d201c99",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x130b7dda574cdb0ab3c5b8f76cfc6fd1504064a45e931580258c7bb25348eb0e",
+      "category": "failed_tx",
+      "subject_address": "0x8F31b60512E209b21F2738675e4bCfdafeFcB0b0",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x35fa28983e8c094814cd14e5e3f3a9443f5156d9369edc3dc264a2f84354ab65",
+      "category": "failed_tx",
+      "subject_address": "0x104c68F3a2732be8690feC54e55054E18EbBa141",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x6e3e3a3752d5d02ebdd47602c16c295a63d14aa49969a2b93dfd3d88626e2c86",
+      "category": "failed_tx",
+      "subject_address": "0xaFfE24906174723B5C66b1a168A013831040E9cA",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xa0381e1be917cbcd67b6aecce1358f92b8eb3aeeb9d5173f5b56313eb61826cd",
+      "category": "failed_tx",
+      "subject_address": "0xc9Ed388d346600335C2CD80c04Baf3c0a857C581",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x6af9b9a3c3d8b3d77c4750ad3ebc3dd2be1c94f3a0368dd0901372697bff8509",
+      "category": "failed_tx",
+      "subject_address": "0xceCB5ffE6C748c3665aDd20B4d11657e5F9902e1",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xe5d1b939815fcbf05a14d66bfb941a71f3b6ca2da4e9fe2b0ea7c68ca5fc65b0",
+      "category": "failed_tx",
+      "subject_address": "0xb1b2d032AA2F52347fbcfd08E5C3Cc55216E8404",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xa2d473c7b4587a5461e67c445284ffa98304c1336952ed2b42f9f1208220dee6",
+      "category": "failed_tx",
+      "subject_address": "0x2da97cFa1904409Aa99535DDD1dDad457e5632cC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x157104755f1a60b3ddd03d1b847bc049d19c4b0e99eeea7b554ed26ef345d629",
+      "category": "failed_tx",
+      "subject_address": "0x9D3eBAA708984BCc0946F1feFB245fB145d2428D",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xfd9b46fff2e903f5632903e9b0e6ce559f4baa1ea9e40ad4a3185fb8a92f17fe",
+      "category": "failed_tx",
+      "subject_address": "0xACd0ceA3607626A6198BBb50718EB84Ee7E5799D",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xc7dc24ac173e56374cfa781aa0a6c39596573add73c1d7f37f047aec9576d86a",
+      "category": "failed_tx",
+      "subject_address": "0xACE654C7F31a87088DBE11eA00C7BCed90001337",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x2538d357b3966c1961be052b5624d6e87dad324ad0ddb80ef6b2464d9f6aa554",
+      "category": "failed_tx",
+      "subject_address": "0xb1b2d032AA2F52347fbcfd08E5C3Cc55216E8404",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xbbfd0a84ce5deec3aee97b6e219f2eef8980e92d4e2a672b293e12a79ee397e4",
+      "category": "failed_tx",
+      "subject_address": "0xb1b2d032AA2F52347fbcfd08E5C3Cc55216E8404",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xbc0694b4b03c3bf2497f06ee33e01fa37238ffa6dd962527d881847ed974b0a2",
+      "category": "failed_tx",
+      "subject_address": "0xb1b2d032AA2F52347fbcfd08E5C3Cc55216E8404",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x3c4b7fa68737dff0d88cce331344963e6e1b878da63f378e1ada64355c058554",
+      "category": "failed_tx",
+      "subject_address": "0x93Da461Eb9B634dfA3405baCd233F4eF167E957e",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xd2f41abc1531686df5db8a45c9015974f620e9acf4b461429dcb91c125b01ace",
+      "category": "failed_tx",
+      "subject_address": "0xA5F63db3dA418600cE10e2b4aabCCa784ef9038A",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xe5c7609070505c7e250b0a10dccc14c1f10c5aa4538fee447c6f3dcd606737b4",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xf766201c488ff77a85041917aa20d218febb4388c2955c269136906fef9f1e5d",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x00722a4d66a8a625cac442b0f0ee79428779505fab402ba0d6a8c2c3bdae634f",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x45035eef55f38c51b2cd2503dd2e1bce3bf32c82ac1ea74047e90e19e03d96ee",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xbcdbae50201508e9d753f8d7a21329aa72f53d86cfdb72d7e089fe29e095fb76",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x07c6e552ca500043a50bbc968246a6776c6af8d095022464f68db3971bd409fc",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xcc4e6272b70ceee204d29a011758ae98a38f05566c2a9fe71d725834b635c440",
+      "category": "failed_tx",
+      "subject_address": "0x0084Dfd7202E5F5C0C8Be83503a492837ca3E95E",
+      "decoded_function": "transfer",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xca5ebf84f429876bc42c7c8c435389a69822252e3521e1afffe0c97ed23c3c93",
+      "category": "failed_tx",
+      "subject_address": "0xDE1b32692a1fB1d8a1Aff56c383FCA0e73A3dEAf",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x99d96c0990f6e9a089905c789c883fac3a40b80b9b8dde3e48f89bd5bf608086",
+      "category": "failed_tx",
+      "subject_address": "0x057F42CC308d376752663c72A34C1B7B8060aC4E",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x58a766b0e8e4a801f2fdd064c24d6e87a9ad1887916b87ba65c7ab740a11d15c",
+      "category": "failed_tx",
+      "subject_address": "0xC9f75e3F5CF794D4ee12282484549b424BDd999e",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x65c3d61364d0bdb3fa473d091d0e1ca673777beb5e7942c123c5a8d3d4426625",
+      "category": "failed_tx",
+      "subject_address": "0xACd0ceA3607626A6198BBb50718EB84Ee7E5799D",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x9e8e9b9ceea5fb6d1f665d433f0452d656671f51b62e2af3f176b6a2bf293612",
+      "category": "failed_tx",
+      "subject_address": "0xCB2eb1365BB6E39afea15503AD5a3d11024BdDd5",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xf75c685a5125e3acd84fc6de073eeb42394df89483364decf46f06d130180b5f",
+      "category": "failed_tx",
+      "subject_address": "0x2da97cFa1904409Aa99535DDD1dDad457e5632cC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x2ce857de8027db6c505990972cb94775d1665d34eb6e7010697763a20652d566",
+      "category": "failed_tx",
+      "subject_address": "0x2da97cFa1904409Aa99535DDD1dDad457e5632cC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x95d14ed2bb4043d8c811088a2986ecb75578e539309597a106d19c761b283617",
+      "category": "failed_tx",
+      "subject_address": "0x3b61F8145f6624EAF769ec1767DD6090A887A831",
+      "decoded_function": "exactInputSingle",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        },
+        {
+          "type": "missing_slippage_protection",
+          "severity_hint": "critical"
+        }
+      ],
+      "max_severity": "critical"
+    },
+    {
+      "tx_hash": "0xc850cef42b4b7723d0d8197daba26ac5bdd5b48a707e24e32fc073e350d1eee0",
+      "category": "failed_tx",
+      "subject_address": "0xa24AecF3cFaA24417FFBe49BdF3adB244476460A",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x2bf794e8512842bb17966b940a35b83500010c5c4b91c92447389bea812b279e",
+      "category": "failed_tx",
+      "subject_address": "0xC5bee7187669272Ab18b2EAAEEBb8986AB5466AF",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x139188c3a2ca7ff9a1c9ee2da50aace86e5ca075d3c0f9581ffe62a757c9b07e",
+      "category": "failed_tx",
+      "subject_address": "0x884e30A97BEe085Bdb839d6FB3AA9F138234a3CC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xe946a97c56c1471ff389fed2943b3ccffcdf87cfcc135614d9afdefe6ea89950",
+      "category": "failed_tx",
+      "subject_address": "0xDE941b5Da019533436832E23becA5eFDd1A45D6E",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xde33ee373068b494aec14405462e93dc0344a9a95acdc0c8b36207e5a819437b",
+      "category": "failed_tx",
+      "subject_address": "0xACE654C7F31a87088DBE11eA00C7BCed90001337",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xf0136efd484367f6085328a369ebcd8957235ddf7a387f0baf9a8a4670a15dfa",
+      "category": "failed_tx",
+      "subject_address": "0x22a145D5cB99D181aA8881c8Da51e58855AA8042",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xa0865a45352bfe54824fa1f8d5d31d619d409ed1f72366c2167acca34d4d9c55",
+      "category": "failed_tx",
+      "subject_address": "0x3b61F8145f6624EAF769ec1767DD6090A887A831",
+      "decoded_function": "exactInputSingle",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        },
+        {
+          "type": "missing_slippage_protection",
+          "severity_hint": "critical"
+        }
+      ],
+      "max_severity": "critical"
+    },
+    {
+      "tx_hash": "0x38a9b4d00fdf1ac5b9bab60fa75754f207493cd8de9f90a13dadb57f0057ea83",
+      "category": "failed_tx",
+      "subject_address": "0xDE941b5Da019533436832E23becA5eFDd1A45D6E",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x3bd4dc4e35c3cb908a9435aab10ba1715470f5da05a194a0dfb8c77e38aeed66",
+      "category": "failed_tx",
+      "subject_address": "0xc9Ed388d346600335C2CD80c04Baf3c0a857C581",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xb2ef686f8f3bf40ecb3dc7fa33fe3c6f062a5e0084d6e00b17f5e027b5aa6e3f",
+      "category": "failed_tx",
+      "subject_address": "0xa24AecF3cFaA24417FFBe49BdF3adB244476460A",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x5105146cc71775d8bd5a60fe4ac1da62404422bc4b452d610d4f34b7fff4605e",
+      "category": "failed_tx",
+      "subject_address": "0xDE941b5Da019533436832E23becA5eFDd1A45D6E",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x97cf4c791ea73ac06fcf0f5903659416f553086539107bac560de2a470c96f14",
+      "category": "failed_tx",
+      "subject_address": "0x2da97cFa1904409Aa99535DDD1dDad457e5632cC",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x193a437ce152468ecee6071e8f0da8e62bd823ea4ce2aece7d2f425ac62fd765",
+      "category": "failed_tx",
+      "subject_address": "0xF95BDCEbEdAd24adF72ddf0fd13d469c41Bb9447",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x3b0512740f292825c2fe196b7dcc3b0dd08859d461ec9a2ee671b95d04707b60",
+      "category": "failed_tx",
+      "subject_address": "0xFe4C33d3f68821aCA26228D53Ea6446b043dD62d",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x94dfb8f48d76ec5042f8f8a9e73f19fc2ea861359ebe60841b3ce1e1d9270b71",
+      "category": "failed_tx",
+      "subject_address": "0xb5Bf19817d1C92120c26C4AaF29941846dDA199B",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0xd55884707a79a81603cb17b035f95d1ee0994f5952a77b9423986e53ffd07ead",
+      "category": "failed_tx",
+      "subject_address": "0xACE654C7F31a87088DBE11eA00C7BCed90001337",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x2f52c4a55d6e4c00966b15a95890023fc1c0573700071820f9525f20ad157bf8",
+      "category": "failed_tx",
+      "subject_address": "0xDE1b32692a1fB1d8a1Aff56c383FCA0e73A3dEAf",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x5fa34ce40313d89d490c3144c9ebe62babfd1cb922c90ad530ccacf90f46ffb6",
+      "category": "failed_tx",
+      "subject_address": "0xa24AecF3cFaA24417FFBe49BdF3adB244476460A",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x1b9296d7f7680c38442c0fe8420ffecae6f8ed2deb3101960b3e07ebedbe82ea",
+      "category": "failed_tx",
+      "subject_address": "0xce63DB0982E68e0B11DA627b6B8cf170557e6F91",
+      "decoded_function": "unknown",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium"
+        }
+      ],
+      "max_severity": "medium"
+    },
+    {
+      "tx_hash": "0x28cd49edd23c7d90235eaa178c1eb3bc056991bcd13d024b9b790757cdd909be",
+      "category": "unlimited_approval",
+      "subject_address": "0xECe424100010b35FeB930E66a6c1FEfFb78cfFc0",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x3171a6e08ea97f64451edb410669dea0896bd9d360863651f136306a84594ce4",
+      "category": "unlimited_approval",
+      "subject_address": "0x76871556aAd437f20a258f73Dc5d5D7bd283269a",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xabe251f9b2bc727c49adc15a24b8e1ab05b3934f897b2090ab82c72f576b0f04",
+      "category": "unlimited_approval",
+      "subject_address": "0x57ad1F6DFC89675d64bc37CCf97Cc6A4070f4F38",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xab30ae51e9eec12875c62ba30017e6680ca45d89f0437fd9bb3ef8c70b33fb37",
+      "category": "unlimited_approval",
+      "subject_address": "0x5b9d3Df46CEc4e075d2A994fb402e6d37eC81690",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x6944a557606fbfa60345b8c63901344170a12f2e49acb707035150c7563c1f21",
+      "category": "unlimited_approval",
+      "subject_address": "0x9dfc840576e285eE2d08358098d26cB02C0782CC",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xb305f766829be04fed114cf28d7f9a3b3661c8a33b58efd0715405d05a6c92f4",
+      "category": "unlimited_approval",
+      "subject_address": "0x6407Af8Cd3752B1fE875B9e28E085B646c1FD6Ff",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xed1a546eaa7284fde4d9b3b8baf3ec0d74aa4e69d91fb692ad191529d5767089",
+      "category": "unlimited_approval",
+      "subject_address": "0xde063fc3f61FF3A2C610C4E7015A567c2c89a793",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xd3e28a611055d0753f1137bcca9df074f662ffc00182e9c9d4b49835556f7870",
+      "category": "unlimited_approval",
+      "subject_address": "0xd87f8ED679d3C3176c0Ac1c34B92f6BA1F78e8D6",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xed731b835670e296d02384d671877e71ffb942a1933a8e645b4f2155734d25c1",
+      "category": "unlimited_approval",
+      "subject_address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x787337d7e31f1d7f7e0ca60519c8dc0e59f0cad9751be10946af4de515e2ff6b",
+      "category": "unlimited_approval",
+      "subject_address": "0x6f64A6b552a3028a8e475ad4A357Fe377bd4B407",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xc3aad2ac663401017a516dfa363b062ca993f3ac0804cc957bcd9f6a83d7bec8",
+      "category": "unlimited_approval",
+      "subject_address": "0x9015D9aCcE010c750A72046BD3BBA722f4b4C324",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x7356525218487bdccc14e7cb467b76ceb092691c85affac959930dd25f5dd9d2",
+      "category": "unlimited_approval",
+      "subject_address": "0x394b0CA58672253287a2b4BB2EE8ae73D3bad4c2",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xb4098c0f747c9dfc99da50c2727fcc5847c98bcfd977b7159e2b6096968941cd",
+      "category": "unlimited_approval",
+      "subject_address": "0x24D729E6dbe399dc1b2F5b34d72Da506CDa0A135",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x45b2c01865253d3fd69e49cccf7c962c3d564de5a03247f200b643582aaaaeda",
+      "category": "unlimited_approval",
+      "subject_address": "0x30CBff54514d44794deEccFD5f20187728b73F15",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xb4328fd8f4e13ec98632e6814ab45cb0d08d878a5c373c36c177071573a677db",
+      "category": "unlimited_approval",
+      "subject_address": "0x57eb43602716b306DC1da04E5DB8241FB79fb70F",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xf7896dc43b00c2f3407ffc4fe2181c6b99218cad6fbfcdbdc0d001fb56160acf",
+      "category": "unlimited_approval",
+      "subject_address": "0x4C3a760f8229cBef3d4ad1CC3C2Ae1a0F8AE88e9",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xa1fbd0cdfe23a9e4eb0878d0f3f7dc1442efbfc198c595d5a6cd955a8c770d89",
+      "category": "unlimited_approval",
+      "subject_address": "0xD1F78f0215c5F735b4f9627737c103898158aFaa",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x76ea4f8873aae444bfa42b54671d35d6f121af08ae0c5890324f36268255a996",
+      "category": "unlimited_approval",
+      "subject_address": "0xeeBACe1Ddba8560D07c226Fb8ea03EA3e0Fb58EE",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xfd7f0455998f1b524ae4dd9eb5a0c9b13d660a91aa0d3c116458f68318a18ea4",
+      "category": "unlimited_approval",
+      "subject_address": "0xA6fc663B9B6913144A157300AE8e71d0eD3F639B",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xf4d107d4493d617d52ebc81f4621f6069a4de431fb3c89e59d69c93c12eb70f3",
+      "category": "unlimited_approval",
+      "subject_address": "0x10759d2c6Ba0e8fb28140E2147e586a092982522",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x9e2bdf4b243040091f34818f9990585ff5bde666ae823bf734e86bd8e742e72b",
+      "category": "unlimited_approval",
+      "subject_address": "0x4444F0Ee0CB4d3c3124758b6Bbe32E9833ad4444",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x4ac0bb9fd024af33715a5d7a8f23b72b0c4c57a36665e156a7e813b32abf478a",
+      "category": "unlimited_approval",
+      "subject_address": "0xFcCe719383Eb4D55568536a625Ce96825e8A91eF",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x105ee2c1821284ead24229185708aa0d08d30adf3655c335296c38326f583751",
+      "category": "unlimited_approval",
+      "subject_address": "0xf91401aeDc7E00FfFb69E6670BC74Fd87E97e050",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xe527fc64d5ed650638b664ba13e401991f5d03f76673c8e079e1ec95187a322a",
+      "category": "unlimited_approval",
+      "subject_address": "0x4b0Ce78Cb9Dc58c43A57AC57a1071731f55014da",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x8b0b6d39a42665291ff2407ac38ebe1203ac73858394a07767351984456ab0eb",
+      "category": "unlimited_approval",
+      "subject_address": "0x6277358bD7D5A75de4eE6b3D764Bf9A183455EDD",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xa9359ba696833301e2a521623645839b3ad15b1ab54f6e24eebe773faa68c0cd",
+      "category": "unlimited_approval",
+      "subject_address": "0x754e83A8C92e0a0D0C46f6A84B1DcA61d64F4aaa",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xe51175116d40ff5fad9bcde403607e8e90e1b9ba9482f1fe14b837705e9acdfe",
+      "category": "unlimited_approval",
+      "subject_address": "0xA012c7817aeEe5bCd43f8a5b5944E58C13Be8d12",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x8b12fe7c6e1352ba8f61d0655034ddbfaee9e45dc4eefe32a59dbc0238855900",
+      "category": "unlimited_approval",
+      "subject_address": "0xDD193d4E649b7c2BF143A809423e6205eC901208",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xb1c72dd29e4bac2b7e67ba2755110189e8330b9a76af11ac90bcf85e45cefa36",
+      "category": "unlimited_approval",
+      "subject_address": "0x0a48C7379cCB664F7CBbDcbc82e3EC4d14c684C1",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x265bbb215ac645a12f7e482483d30f92c5d05747fe1b2fac5d46524bc5111a5d",
+      "category": "unlimited_approval",
+      "subject_address": "0x314817c88b448Ca63249516cEf29F4517585A807",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xd9909791d48ba29c97b86d57bb26d8cf845001bfb95d2852197c846b9386b56f",
+      "category": "unlimited_approval",
+      "subject_address": "0x66fFD1cEADCf461cd1272b26956171C18CA25b7d",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xcfd54edde2894ffbc128255e8015a7406e94d9cf7918e34da7e481528c485a5c",
+      "category": "unlimited_approval",
+      "subject_address": "0x0A5339147f8342995D6b9EB346869f7a41296030",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xfee0c8a5607172465bf4cb612a087744a9b31d6b7c734f845060ed377926b777",
+      "category": "unlimited_approval",
+      "subject_address": "0x5313a13Be92E6C6c828BCecAc28e534c0b380a4b",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x935da3e6c9d48211d300bf5b6388f83ad4a0563b7bcb5bd134ab7de5ff7c9adb",
+      "category": "unlimited_approval",
+      "subject_address": "0xD71f696b80b7a0Eb6f9ba8024DA09Bcaa00bDe8D",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x5075b95736521e3001cd25a7e76f86cfd64750340c88e7aac8b7ab9eedb16d8a",
+      "category": "unlimited_approval",
+      "subject_address": "0xE3f18e49d72C5EE28b9AfBf23A5Adc3b5a4DED7D",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x31b210c87a3e89c833e71b9ea2e86918acdc71ea33b5e02a4232645e1bf1567b",
+      "category": "unlimited_approval",
+      "subject_address": "0xB468209383377334e7495D4d75586654cBaC18a5",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x5d776a7803b6d724b6c39b4c4f4f7a605c307a415d9f49169a96f571f7fa3066",
+      "category": "unlimited_approval",
+      "subject_address": "0xBD60BDa635AC1e6d01221967E12DbFe166b9a302",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x1f42bb3805786b7465f5f8fe9070d0eb495b2d46fcef3aee53d577c564a52b9b",
+      "category": "unlimited_approval",
+      "subject_address": "0xb6cdB5fBc6bdD980FF886a1EA21D119DF09BCD70",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x9ccd5a4823fc346a5f350fbe1b0a6f7dac6ebc282959544406cc31875bc5dbbb",
+      "category": "unlimited_approval",
+      "subject_address": "0x11209A213F9d970C9E9ffD0eEe4DF2169A918705",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x173491122885722e57e866c5d278622eaca0609798a0b211f97aabe199b05fe0",
+      "category": "unlimited_approval",
+      "subject_address": "0x6F4C2D851311176eEA9AB957353Ab3c5CFF7D3ab",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x3b5ab39508f8f0542628d820676534ae6b1561074c7b79f8aa72382b92eedbf9",
+      "category": "unlimited_approval",
+      "subject_address": "0xdBf29585653D23615cC1b25b0E4327d5F3BCaC0B",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x9a550b64c54e7e0777b11a01ee46e94d8d50b7db2c7f5cc0423387c80f5dd8a7",
+      "category": "unlimited_approval",
+      "subject_address": "0x007d26B375999a4dd38050fe741dCEdb3258b209",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xeb47646702ae1827577b652f04c0e334c4e9e2b4a9fde3dc8a80911259c5d445",
+      "category": "unlimited_approval",
+      "subject_address": "0x6B8581256C6FeDb3c35b05bec383F928f50c2Aff",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xa1330f7e275e78588c4155e1c7d3b145cb92aa88789e524de9315006c971c95b",
+      "category": "unlimited_approval",
+      "subject_address": "0x01CB7D2b47A947b6d27998eABaEf2F654eBCdaEb",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x242e0dc3fe9f5851b5011192f7ff27ac033ceff9527ee79db10e046e1287037c",
+      "category": "unlimited_approval",
+      "subject_address": "0x409185f31188ba48414F104Ca19993C009bC9E64",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x32130368f98b5fce6da9b98223e71a332c9fbbb43c834d5af785ad2ec396ea2c",
+      "category": "unlimited_approval",
+      "subject_address": "0x28032c85558c4445371a12605A9769CE2c3C71c4",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x9bc175fff67f9a04d73b2340044dd6d66f8582a7eed31000c98cc91467ecee67",
+      "category": "unlimited_approval",
+      "subject_address": "0x14A88cC98236252F25Aa15E1c40a2B62982Ca0f7",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x188903cfac1f45b150e0fd3dc5227830c47411e47290906a47ada3381e3014fc",
+      "category": "unlimited_approval",
+      "subject_address": "0x99303Ce2AC308da6A137C69499E0BE2C0B4c8059",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x4c3629a7c64746672df15994048121dcec9699fa4a2e76a2d0dd85ca9e5f300c",
+      "category": "unlimited_approval",
+      "subject_address": "0xB5Ad13bC2Fc8ef6Fc7db74a9fFBF984Dc96d02D3",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0x96e18877fb87e5284a37ffafcec703bd8da1aa6a9fd1c6902b2adf7f50b2e841",
+      "category": "unlimited_approval",
+      "subject_address": "0xB623717628D69e588721074773765c66981d909F",
+      "decoded_function": "approve",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high"
+        }
+      ],
+      "max_severity": "high"
+    },
+    {
+      "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106",
+      "category": "missing_slippage",
+      "subject_address": "0x5A89D0400AB44bf82dC39f54eD4943D40906eC5D",
+      "decoded_function": "exactInputSingle",
+      "signals": [
+        {
+          "type": "extreme_value_imbalance",
+          "severity_hint": "critical"
+        },
+        {
+          "type": "missing_slippage_protection",
+          "severity_hint": "critical"
+        }
+      ],
+      "max_severity": "critical"
+    }
+  ],
+  "dropped": [
+    {
+      "tx_hash": "0xc310a0affe2169d1f6feec1c63dbc7f7c62a887fa48795d327d4d2da2d6b111d",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x62bd3d31a7b75c098ccf28bc4d4af8c4a191b4b9e451fab4232258079e8b18c4",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x3097830e9921e4063d334acb82f6a79374f76f0b1a8f857e89b89bc58df1f311",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x47ac3527d02e6b9631c77fad1cdee7bfa77a8a7bfd4880dccbda5146ace4088f",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x68cdec0ac76454c3b0f7af0b8a3895db00adf6daaf3b50a99716858c4fa54c6f",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xea3480f1f1d1f0b32283f8f282ce16403fe22ede35c0b71a732193e56c5c45e8",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xb8f57cf82b7057d9d03f1500e3f0ce46980388c3b13ff317f1c617d932313386",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xa5fe9d044e4f3e5aa5bc4c0709333cd2190cba0f4e7f16bcf73f49f83e4a5460",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x99662dacfb4b963479b159fc43c2b4d048562104fe154a4d0c2519ada72e50bf",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xa84aa065ce61dbb1eb50ab6ae67fc31a9da50dd2c74eefd561661bfce2f1620c",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xc93eb238ff42632525e990119d3edc7775299a70b56e54d83ec4f53736400964",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xb676d789bb8b66a08105c844a49c2bcffb400e5c1cfabd4bc30cca4bff3c9801",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x2e7dc8b2fb7e25fd00ed9565dcc0ad4546363171d5e00f196d48103983ae477c",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xcd99fadd7e28a42a063e07d9d86f67c88e10a7afe5921bd28cd1124924ae2052",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x20d00acdfbaeffa5fe618ecbcbb8c13df80133cb6d964f9a7ab6a5a7b0d796f3",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x65670d8e4f08d56971d476b0c68ca745b0749ec7f79f9b79d993ef47cc91b9c6",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x31f9e6bc4f0cc4a7b430811ab462349b427ca358697b35cacfe3770c8f4d909e",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x958236266991bc3fe3b77feaacea120f172c0708ad01c7a715b255f218f9313c",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x0479da9d6a3a29b294d6337630ea0a482e7ec7223f3b6e6d72442f6c450264d4",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x485e08dc2b6a4b3aeadcb89c3d18a37666dc7d9424961a2091d6b3696792f0f3",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x09a3a12d58b0bb80e33e3fb8e282728551dc430c65d1e520fe0009ec519d75e8",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x396a83df7361519416a6dc960d394e689dd0f158095cbc6a6c387640716f5475",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x22dabe7f86947c3b2ccc4679ffcb78038b5a4c9e6cc5444382d430d4628a50c1",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x0fe2542079644e107cbf13690eb9c2c65963ccb79089ff96bfaf8dced2331c92",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0x8b74995d1d61d3d7547575649136b8765acb22882960f0636941c44ec7bbe146",
+      "reason": "no_rule_signals",
+      "category": "hack_exploit"
+    },
+    {
+      "tx_hash": "0xb76754124fdde090f25129105ed2907e3c62e0db87ecb8ffcefcb1dede0954fd",
+      "reason": "no_rule_signals",
+      "category": "hack_recovery"
+    },
+    {
+      "tx_hash": "0x0af5a6d2d8b49f68dcfd4599a0e767450e76e08a5aeba9b3d534a604d308e60b",
+      "reason": "no_rule_signals",
+      "category": "sandwich_victim"
+    },
+    {
+      "tx_hash": "0xc65093b52fcf395f23fb7195a6fd5758b9a3eb1ccd0e3572754690d3a2a2c27c",
+      "reason": "no_rule_signals",
+      "category": "phishing_drainer"
+    },
+    {
+      "tx_hash": "0x973cd5908d1ac430771688370f4c70405a887500abfe7d525ca215cd091d81d8",
+      "reason": "no_rule_signals",
+      "category": "mev_arbitrage"
+    }
+  ],
+  "errors": []
+}
