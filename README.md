@@ -38,12 +38,12 @@ Start the API server:
 npm run api
 ```
 
-The server listens on `HOST` and `PORT`, defaulting to `127.0.0.1:3000`. Both endpoints return the same validated audit JSON produced by the CLI path.
+The server listens on `HOST` and `PORT`, defaulting to `127.0.0.1:13000`. Both endpoints return the same validated audit JSON produced by the CLI path.
 
 Audit with an explicit subject address:
 
 ```bash
-curl -s http://127.0.0.1:3000/audit/subject \
+curl -s http://127.0.0.1:13000/audit/subject \
   -H "Content-Type: application/json" \
   -d '{
     "tx_hash": "0x...",
@@ -54,7 +54,7 @@ curl -s http://127.0.0.1:3000/audit/subject \
 Audit using `tx.from` as the subject address:
 
 ```bash
-curl -s http://127.0.0.1:3000/audit/from-tx \
+curl -s http://127.0.0.1:13000/audit/from-tx \
   -H "Content-Type: application/json" \
   -d '{
     "tx_hash": "0x..."
@@ -97,7 +97,7 @@ npm run api
 Request:
 
 ```bash
-curl -s http://127.0.0.1:3000/audit/subject \
+curl -s http://127.0.0.1:13000/audit/subject \
   -H "Content-Type: application/json" \
   -d '{
     "tx_hash": "0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3",
@@ -133,7 +133,7 @@ Actual response captured through the API server:
 Request using `tx.from` as the subject:
 
 ```bash
-curl -s http://127.0.0.1:3000/audit/from-tx \
+curl -s http://127.0.0.1:13000/audit/from-tx \
   -H "Content-Type: application/json" \
   -d '{
     "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106"
