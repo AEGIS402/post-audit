@@ -112,83 +112,157 @@ describe("post-audit payload builder", function () {
     expectEveryEvidenceRefIsResolvable(payload);
   });
 
-  it("validates LLM output schema and prunes findings with invalid evidence refs", async function () {
+  it("validates LLM output schema and prunes vulnerabilities with invalid evidence refs", async function () {
     const fixture = JSON.parse(await readFile("fixtures/simple-transfer.json", "utf8")) as RawRpcInput;
     const payload = buildAuditPayload(fixture);
     const validOutput = {
-      risk_level: "low",
-      risk_score: 12,
-      one_line_summary: "This is a simple 100 USDC transfer.",
-      executive_summary: "The subject address sent 100 USDC to the recipient.",
-      findings: [
+      model: "unexpected-model",
+      score_version: "unexpected-version",
+      overall_risk_score: 12,
+      overall_severity: "critical",
+      overall_summary: "This is a simple 100 USDC transfer.",
+      vulnerabilities: [
         {
-          type: "simple_erc20_transfer",
+          id: "V-001",
+          title: "Normal ERC20 transfer note",
           severity: "info",
-          title: "Normal ERC20 transfer",
-          description: "The subject address sent 100 USDC.",
-          evidence_refs: ["flow#0"],
-          confidence: 0.9,
+          risk_score: 5,
+          confidence_score: 90,
+          impact_score: 5,
+          exploitability_score: 0,
+          summary: "The subject address sent 100 USDC.",
+          remediation: "No remediation is required for this test response.",
+          evidence: [
+            {
+              line_start: null,
+              line_end: null,
+              description: "Evidence refs: flow#0.",
+            },
+          ],
         },
         {
-          type: "unsupported_claim",
-          severity: "high",
+          id: "V-002",
           title: "Unsupported claim",
-          description: "This finding references an evidence ref that does not exist.",
-          evidence_refs: ["missing#0"],
-          confidence: 0.5,
+          severity: "high",
+          risk_score: 80,
+          confidence_score: 50,
+          impact_score: 80,
+          exploitability_score: 50,
+          summary: "This vulnerability references an evidence ref that does not exist.",
+          remediation: "Remove unsupported claims.",
+          evidence: [
+            {
+              line_start: null,
+              line_end: null,
+              description: "Evidence refs: missing#0.",
+            },
+          ],
         },
       ],
-      benign_explanations_to_check: [],
-      missing_evidence: ["Debug trace was not provided."],
-      recommended_actions: ["Confirm that the recipient address was intended."],
-      final_assessment: "The provided evidence supports a low-risk assessment.",
     };
 
-    const parsed = parseAndValidateAuditOutput(validOutput, payload);
-    expect(parsed.findings).to.have.length(1);
-    expect(parsed.findings[0].evidence_refs).to.deep.equal(["flow#0"]);
+    const parsed = parseAndValidateAuditOutput(validOutput, payload, "test-model");
+    expect(parsed.model).to.equal("test-model");
+    expect(parsed.score_version).to.equal("risk-v1");
+    expect(parsed.overall_severity).to.equal("info");
+    expect(parsed.vulnerabilities).to.have.length(1);
+    expect(parsed.vulnerabilities[0].evidence).to.deep.equal([
+      {
+        line_start: null,
+        line_end: null,
+        description: "Evidence refs: flow#0.",
+      },
+    ]);
 
     expect(() =>
       parseAndValidateAuditOutput(
         {
           ...validOutput,
-          risk_score: 101,
+          overall_risk_score: 101,
         },
         payload,
       ),
     ).to.throw();
   });
 
-  it("normalizes model output to ASCII and score-consistent risk levels", async function () {
+  it("normalizes model output to ASCII and score-consistent severities", async function () {
     const fixture = JSON.parse(await readFile("fixtures/simple-transfer.json", "utf8")) as RawRpcInput;
     const payload = buildAuditPayload(fixture);
     const parsed = parseAndValidateAuditOutput(
       {
-        risk_level: "high",
-        risk_score: 90,
-        one_line_summary: "High\u2011risk swap with approx loss",
-        executive_summary: "Uses a non-breaking hyphen in high\u2011risk wording.",
-        findings: [
+        model: "model",
+        score_version: "risk-v1",
+        overall_risk_score: 90,
+        overall_severity: "high",
+        overall_summary: "High\u2011risk swap with approx loss",
+        vulnerabilities: [
           {
-            type: "risk",
-            severity: "critical",
+            id: "V-001",
             title: "High\u2011risk finding",
-            description: "Approximately 97 percent loss.",
-            evidence_refs: ["flow#0"],
-            confidence: 1,
+            severity: "critical",
+            risk_score: 90,
+            confidence_score: 100,
+            impact_score: 90,
+            exploitability_score: 75,
+            summary: "Uses a non-breaking hyphen in high\u2011risk wording.",
+            remediation: "Use non-zero slippage protection.",
+            evidence: [
+              {
+                line_start: null,
+                line_end: null,
+                description: "Evidence refs: flow#0.",
+              },
+            ],
           },
         ],
-        benign_explanations_to_check: [],
-        missing_evidence: [],
-        recommended_actions: ["Use non-zero slippage protection."],
-        final_assessment: "Critical score range should override the model level.",
       },
       payload,
+      "gpt\u2011oss",
     );
 
-    expect(parsed.risk_level).to.equal("critical");
-    expect(parsed.one_line_summary).to.equal("High-risk swap with approx loss");
-    expect(parsed.final_assessment).to.equal("Critical score range should override the model level.");
+    expect(parsed.model).to.equal("gpt-oss");
+    expect(parsed.overall_severity).to.equal("critical");
+    expect(parsed.overall_summary).to.equal("High-risk swap with approx loss");
+    expect(parsed.vulnerabilities[0].title).to.equal("High-risk finding");
+    expect(parsed.vulnerabilities[0].summary).to.equal("Uses a non-breaking hyphen in high-risk wording.");
+    expect(parsed.vulnerabilities[0].evidence[0]).to.include({
+      line_start: null,
+      line_end: null,
+    });
+  });
+
+  it("normalizes overall severity using evmbench risk bands", async function () {
+    const fixture = JSON.parse(await readFile("fixtures/simple-transfer.json", "utf8")) as RawRpcInput;
+    const payload = buildAuditPayload(fixture);
+    const cases = [
+      [0, "info"],
+      [19, "info"],
+      [20, "low"],
+      [44, "low"],
+      [45, "medium"],
+      [74, "medium"],
+      [75, "high"],
+      [89, "high"],
+      [90, "critical"],
+      [100, "critical"],
+    ] as const;
+
+    for (const [score, expectedSeverity] of cases) {
+      const parsed = parseAndValidateAuditOutput(
+        {
+          model: "model",
+          score_version: "risk-v1",
+          overall_risk_score: score,
+          overall_severity: "critical",
+          overall_summary: "Band test.",
+          vulnerabilities: [],
+        },
+        payload,
+        "test-model",
+      );
+
+      expect(parsed.overall_severity, `score ${score}`).to.equal(expectedSeverity);
+    }
   });
 
   it("keeps all generated payload evidence refs resolvable for JSON fixtures", async function () {

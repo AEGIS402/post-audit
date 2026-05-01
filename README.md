@@ -63,21 +63,24 @@ curl -s http://127.0.0.1:3000/audit/from-tx \
 
 ## Risk Fields
 
-Every successful audit response includes both `risk_level` and `risk_score`.
+Every successful audit response uses evmbench-style top-level scoring fields.
 
-- `risk_level`: categorical severity. Allowed values are `low`, `medium`, `high`, and `critical`.
-- `risk_score`: numeric severity from `0` to `100`, where higher means riskier.
+- `overall_risk_score`: numeric severity from `0` to `100`, where higher means riskier.
+- `overall_severity`: categorical severity. Allowed values are `info`, `low`, `medium`, `high`, and `critical`.
+- `score_version`: fixed to `risk-v1`.
+- `vulnerabilities`: concrete risk items. Benign transactions should return an empty array.
 
-Recommended interpretation:
+Severity bands:
 
-| risk_level | risk_score range | Meaning |
+| overall_severity | overall_risk_score range | Meaning |
 | --- | ---: | --- |
-| `low` | `0-24` | Normal-looking activity or only informational findings. |
-| `medium` | `25-59` | Suspicious or user-confirmation-worthy activity without strong loss evidence. |
-| `high` | `60-84` | Strong risk signal, high-value exposure, dangerous approval, or compliance-sensitive interaction. |
-| `critical` | `85-100` | Severe loss pattern, extreme value imbalance, missing slippage protection on harmful swap, or urgent incident candidate. |
+| `info` | `0-19` | Normal-looking activity or no risk condition detected. |
+| `low` | `20-44` | Low-risk signal that may be useful context but is not urgent. |
+| `medium` | `45-74` | Suspicious or user-confirmation-worthy activity without severe loss evidence. |
+| `high` | `75-89` | Strong risk signal, high-value exposure, or dangerous approval. |
+| `critical` | `90-100` | Severe loss pattern, extreme value imbalance, or missing slippage protection on a harmful swap. |
 
-The LLM returns the final level and score, but the local schema enforces `risk_level` membership and the `0-100` score range.
+The LLM proposes the final score, but local normalization fixes `score_version`, sets `model` from `LLM_MODEL`, enforces `0-100` score ranges, and derives severity from the score bands above.
 
 ## API E2E Examples
 
@@ -112,32 +115,16 @@ Request summary:
 }
 ```
 
-Example response:
+Actual response captured through the API server:
 
 ```json
 {
-  "risk_level": "low",
-  "risk_score": 0,
-  "one_line_summary": "Standard ERC20 USDC transfer of 100 USDC from subject address to counterparty.",
-  "executive_summary": "The transaction 0x148365227e5820b06f2d9786aea454f96cf2b686bd26fdeb825ffda18b7633f3 is a simple ERC20 transfer of 100 USDC (6 decimals) from the subject address 0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897 to the recipient 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer succeeded, consumed 62,248 gas, and no value in ETH was transferred. No suspicious patterns or rule violations were detected.",
-  "findings": [
-    {
-      "type": "transfer",
-      "severity": "info",
-      "title": "ERC20 USDC transfer of 100 USDC",
-      "description": "Subject address 0x5Bee9b98669D032352E7Eec4B7F4486ABe00F897 sent 100 USDC (token 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) to 0x44Eb044aa553E45C17d029983727abC8b633cb9A. The transfer was successful and recorded in the transaction receipt log.",
-      "evidence_refs": [
-        "receipt.raw.logs[0]"
-      ],
-      "confidence": 1
-    }
-  ],
-  "benign_explanations_to_check": [],
-  "missing_evidence": [],
-  "recommended_actions": [
-    "No further action required."
-  ],
-  "final_assessment": "The transaction is a normal ERC20 token transfer with no indicators of risk."
+  "model": "gpt-oss-120b",
+  "score_version": "risk-v1",
+  "overall_risk_score": 0,
+  "overall_severity": "info",
+  "overall_summary": "The transaction transferred 100 USDC from the subject address to another address, and no risky conditions were detected.",
+  "vulnerabilities": []
 }
 ```
 
@@ -163,59 +150,53 @@ Request summary:
 }
 ```
 
-Example response:
+Actual response captured through the API server:
 
 ```json
 {
-  "risk_level": "critical",
-  "risk_score": 92,
-  "one_line_summary": "Uniswap V3 swap of ~220,806 USDC for ~5,273 USDT with 97.6% loss and no slippage protection.",
-  "executive_summary": "The subject address swapped 220,806.389669 USDC for only 5,272.998058 USDT via Uniswap V3's exactInputSingle function. The transaction set amountOutMinimum to zero, providing no slippage protection, and resulted in an extreme value imbalance (output/input ratio approximately 0.024, ~97.6% loss). Two ERC-20 Transfer events confirm the outflow of USDC and inflow of USDT. The combination of a critical loss and missing slippage protection indicates a high-risk transaction.",
-  "findings": [
+  "model": "gpt-oss-120b",
+  "score_version": "risk-v1",
+  "overall_risk_score": 90,
+  "overall_severity": "critical",
+  "overall_summary": "The transaction performed an exactInputSingle swap on Uniswap V3, sending 220,806.389669 USDC and receiving only 5,272.998058 USDT, resulting in an approximate 97.6% loss. The swap was executed with amountOutMinimum set to zero, providing no slippage protection.",
+  "vulnerabilities": [
     {
-      "type": "extreme_value_imbalance",
+      "id": "V-001",
+      "title": "Extreme value imbalance (large loss)",
       "severity": "critical",
-      "title": "Extreme value imbalance: massive loss on swap",
-      "description": "The subject sent approximately 220,806.389669 USDC and received only 5,272.998058 USDT, representing a ~97.6% loss (output/input ratio 0.0239).",
-      "evidence_refs": [
-        "flow#1",
-        "flow#0"
-      ],
-      "confidence": 1
+      "risk_score": 90,
+      "confidence_score": 90,
+      "impact_score": 90,
+      "exploitability_score": 80,
+      "summary": "The subject transferred 220,806.389669 USDC out and received only 5,272.998058 USDT in, representing a loss of about 97.6% of the input value. This extreme imbalance indicates a highly risky transaction.",
+      "remediation": "Avoid swaps with such disproportionate output. Verify price impact and expected output before executing, and use slippage limits to protect against excessive loss.",
+      "evidence": [
+        {
+          "line_start": null,
+          "line_end": null,
+          "description": "Evidence refs: flow#1, flow#0."
+        }
+      ]
     },
     {
-      "type": "missing_slippage_protection",
-      "severity": "critical",
-      "title": "Missing slippage protection in Uniswap V3 exactInputSingle call",
-      "description": "The decoded exactInputSingle calldata has amountOutMinimum set to zero, providing no protection against price slippage.",
-      "evidence_refs": [
-        "tx.raw.input"
-      ],
-      "confidence": 1
-    },
-    {
-      "type": "erc20_transfer",
-      "severity": "info",
-      "title": "ERC-20 token transfers observed",
-      "description": "Transfer of 220,806.389669 USDC from the subject to the pool and receipt of 5,272.998058 USDT from the pool to the subject.",
-      "evidence_refs": [
-        "log#1",
-        "log#0"
-      ],
-      "confidence": 1
+      "id": "V-002",
+      "title": "Missing slippage protection (amountOutMinimum = 0)",
+      "severity": "high",
+      "risk_score": 85,
+      "confidence_score": 90,
+      "impact_score": 85,
+      "exploitability_score": 80,
+      "summary": "The decoded exactInputSingle call sets amountOutMinimum to zero, meaning the transaction accepts any amount of USDT in return, providing no protection against price slippage.",
+      "remediation": "Specify a reasonable amountOutMinimum based on market rates to enforce slippage protection. Review and adjust contract calls to include minimum output constraints.",
+      "evidence": [
+        {
+          "line_start": null,
+          "line_end": null,
+          "description": "Evidence refs: tx.raw.input."
+        }
+      ]
     }
-  ],
-  "benign_explanations_to_check": [
-    "The user intentionally set amountOutMinimum to zero, accepting any execution price.",
-    "The transaction may be part of a larger strategy (e.g., arbitrage) where the apparent loss is offset elsewhere."
-  ],
-  "missing_evidence": [],
-  "recommended_actions": [
-    "Review the user's intent and confirm whether the zero minimum output was deliberate.",
-    "Advise adding a reasonable amountOutMinimum to protect against slippage in future swaps.",
-    "Monitor the address for similar high-loss swaps and consider flagging for further analysis."
-  ],
-  "final_assessment": "The transaction exhibits a critical risk due to an extreme loss on a token swap and the absence of slippage protection. While the transfers themselves are standard ERC-20 events, the combination of a near-total loss and missing safeguards warrants a high-severity alert and further review."
+  ]
 }
 ```
 

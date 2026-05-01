@@ -1,4 +1,4 @@
-export type RiskLevel = "low" | "medium" | "high" | "critical";
+export type Severity = "info" | "low" | "medium" | "high" | "critical";
 export type Direction = "in" | "out";
 
 export interface RawRpcInput {
@@ -113,7 +113,7 @@ export interface ApprovalChange {
 export interface RuleSignal {
   signal_id: string;
   type: string;
-  severity_hint: "info" | "low" | "medium" | "high" | "critical";
+  severity_hint: Severity;
   description: string;
   computed?: Record<string, unknown>;
   evidence_refs: string[];
@@ -136,25 +136,32 @@ export interface AuditPayload {
   known_limitations: string[];
 }
 
-export interface AuditFinding {
-  type: string;
-  severity: string;
-  title: string;
+export interface VulnerabilityEvidence {
+  line_start: null;
+  line_end: null;
   description: string;
-  evidence_refs: string[];
-  confidence: number;
+}
+
+export interface AuditVulnerability {
+  id: string;
+  title: string;
+  severity: Severity;
+  risk_score: number;
+  confidence_score: number;
+  impact_score: number;
+  exploitability_score: number;
+  summary: string;
+  remediation: string;
+  evidence: VulnerabilityEvidence[];
 }
 
 export interface AuditOutput {
-  risk_level: RiskLevel;
-  risk_score: number;
-  one_line_summary: string;
-  executive_summary: string;
-  findings: AuditFinding[];
-  benign_explanations_to_check: string[];
-  missing_evidence: string[];
-  recommended_actions: string[];
-  final_assessment: string;
+  model: string;
+  score_version: "risk-v1";
+  overall_risk_score: number;
+  overall_severity: Severity;
+  overall_summary: string;
+  vulnerabilities: AuditVulnerability[];
 }
 
 export interface BuildPayloadOptions {

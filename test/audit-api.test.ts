@@ -45,7 +45,10 @@ describe("post-audit API", function () {
       const json = (await response.json()) as AuditOutput;
 
       expect(response.status).to.equal(200);
-      expect(json.risk_level).to.equal("low");
+      expect(json.model).to.equal("test-model");
+      expect(json.score_version).to.equal("risk-v1");
+      expect(json.overall_severity).to.equal("info");
+      expect(json.vulnerabilities).to.deep.equal([]);
       expect(capturedPayload?.subject_address).to.equal(subject.address);
       expect(capturedPayload?.asset_flows[0]).to.include({
         asset: "USDC",
@@ -93,7 +96,10 @@ describe("post-audit API", function () {
       const json = (await response.json()) as AuditOutput;
 
       expect(response.status).to.equal(200);
-      expect(json.risk_level).to.equal("low");
+      expect(json.model).to.equal("test-model");
+      expect(json.score_version).to.equal("risk-v1");
+      expect(json.overall_severity).to.equal("info");
+      expect(json.vulnerabilities).to.deep.equal([]);
       expect(capturedPayload?.subject_address).to.equal(subject.address);
       expect(capturedPayload?.asset_flows[0]).to.include({
         asset: "USDC",
@@ -156,23 +162,11 @@ async function close(server: Server): Promise<void> {
 
 function makeAuditOutput(payload: AuditPayload): AuditOutput {
   return {
-    risk_level: "low",
-    risk_score: 5,
-    one_line_summary: "API test audit result.",
-    executive_summary: "The requested transaction was audited through the API path.",
-    findings: [
-      {
-        type: payload.rule_signals[0]?.type ?? "no_signal",
-        severity: payload.rule_signals[0]?.severity_hint ?? "info",
-        title: "API audit",
-        description: "The API-generated payload was passed to the audit runner.",
-        evidence_refs: [payload.asset_flows[0]?.flow_id ?? "tx.raw"],
-        confidence: 1,
-      },
-    ],
-    benign_explanations_to_check: [],
-    missing_evidence: [],
-    recommended_actions: [],
-    final_assessment: "This is a test response.",
+    model: "test-model",
+    score_version: "risk-v1",
+    overall_risk_score: payload.rule_signals.some((signal) => signal.severity_hint === "critical") ? 90 : 5,
+    overall_severity: payload.rule_signals.some((signal) => signal.severity_hint === "critical") ? "critical" : "info",
+    overall_summary: "API test audit result.",
+    vulnerabilities: [],
   };
 }

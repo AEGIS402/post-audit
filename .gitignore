@@ -6,3 +6,4 @@ dist/
 types/
 .env
 *.log
+.vscode_hardhat_config_*.ts

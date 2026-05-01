@@ -1,38 +1,51 @@
 import { z } from "zod";
 import { collectPayloadReferenceIds } from "./payload.js";
-import type { AuditOutput, AuditPayload, RiskLevel } from "./types.js";
+import type { AuditOutput, AuditPayload, Severity } from "./types.js";
 
-export const AuditFindingSchema = z.object({
-  type: z.string().min(1),
-  severity: z.string().min(1),
-  title: z.string().min(1),
+const SeveritySchema = z.enum(["info", "low", "medium", "high", "critical"]);
+const ScoreSchema = z.number().min(0).max(100);
+
+export const VulnerabilityEvidenceSchema = z.object({
+  line_start: z.null(),
+  line_end: z.null(),
   description: z.string().min(1),
-  evidence_refs: z.array(z.string().min(1)),
-  confidence: z.number().min(0).max(1),
-});
+}).strict();
+
+export const AuditVulnerabilitySchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  severity: SeveritySchema,
+  risk_score: ScoreSchema,
+  confidence_score: ScoreSchema,
+  impact_score: ScoreSchema,
+  exploitability_score: ScoreSchema,
+  summary: z.string().min(1),
+  remediation: z.string().min(1),
+  evidence: z.array(VulnerabilityEvidenceSchema).min(1),
+}).strict();
 
 export const AuditOutputSchema = z.object({
-  risk_level: z.enum(["low", "medium", "high", "critical"]),
-  risk_score: z.number().min(0).max(100),
-  one_line_summary: z.string().min(1),
-  executive_summary: z.string().min(1),
-  findings: z.array(AuditFindingSchema),
-  benign_explanations_to_check: z.array(z.string()),
-  missing_evidence: z.array(z.string()),
-  recommended_actions: z.array(z.string()),
-  final_assessment: z.string().min(1),
-});
+  model: z.string().min(1),
+  score_version: z.string().min(1),
+  overall_risk_score: ScoreSchema,
+  overall_severity: SeveritySchema,
+  overall_summary: z.string().min(1),
+  vulnerabilities: z.array(AuditVulnerabilitySchema),
+}).strict();
 
-export function parseAndValidateAuditOutput(raw: unknown, payload: AuditPayload): AuditOutput {
-  const parsed = normalizeAuditOutput(AuditOutputSchema.parse(raw));
+export function parseAndValidateAuditOutput(raw: unknown, payload: AuditPayload, model = "unknown"): AuditOutput {
+  const parsed = normalizeAuditOutput(AuditOutputSchema.parse(raw), model);
   const allowedRefs = collectPayloadReferenceIds(payload);
-  const findings = parsed.findings.filter((finding) => {
-    return finding.evidence_refs.length > 0 && finding.evidence_refs.every((ref) => allowedRefs.has(ref));
-  });
+  const vulnerabilities = parsed.vulnerabilities
+    .map((vulnerability) => ({
+      ...vulnerability,
+      evidence: vulnerability.evidence.filter((evidence) => evidenceMentionsKnownRef(evidence.description, allowedRefs)),
+    }))
+    .filter((vulnerability) => vulnerability.evidence.length > 0);
 
   return {
     ...parsed,
-    findings,
+    vulnerabilities,
   };
 }
 
@@ -40,41 +53,60 @@ export function parseModelJson(content: string): unknown {
   return JSON.parse(content);
 }
 
-function normalizeAuditOutput(output: AuditOutput): AuditOutput {
+function normalizeAuditOutput(output: z.infer<typeof AuditOutputSchema>, model: string): AuditOutput {
   return {
-    ...output,
-    risk_level: riskLevelForScore(output.risk_score),
-    one_line_summary: toAscii(output.one_line_summary),
-    executive_summary: toAscii(output.executive_summary),
-    findings: output.findings.map((finding) => ({
-      ...finding,
-      type: toAscii(finding.type),
-      severity: toAscii(finding.severity),
-      title: toAscii(finding.title),
-      description: toAscii(finding.description),
-      evidence_refs: finding.evidence_refs.map(toAscii),
+    model: toAscii(model),
+    score_version: "risk-v1",
+    overall_risk_score: output.overall_risk_score,
+    overall_severity: severityForScore(output.overall_risk_score),
+    overall_summary: toAscii(output.overall_summary),
+    vulnerabilities: output.vulnerabilities.map((vulnerability) => ({
+      id: toAscii(vulnerability.id),
+      title: toAscii(vulnerability.title),
+      severity: severityForScore(vulnerability.risk_score),
+      risk_score: vulnerability.risk_score,
+      confidence_score: vulnerability.confidence_score,
+      impact_score: vulnerability.impact_score,
+      exploitability_score: vulnerability.exploitability_score,
+      summary: toAscii(vulnerability.summary),
+      remediation: toAscii(vulnerability.remediation),
+      evidence: vulnerability.evidence.map((evidence) => ({
+        line_start: evidence.line_start,
+        line_end: evidence.line_end,
+        description: toAscii(evidence.description),
+      })),
     })),
-    benign_explanations_to_check: output.benign_explanations_to_check.map(toAscii),
-    missing_evidence: output.missing_evidence.map(toAscii),
-    recommended_actions: output.recommended_actions.map(toAscii),
-    final_assessment: toAscii(output.final_assessment),
   };
 }
 
-function riskLevelForScore(score: number): RiskLevel {
-  if (score < 25) {
+function severityForScore(score: number): Severity {
+  if (score < 20) {
+    return "info";
+  }
+
+  if (score < 45) {
     return "low";
   }
 
-  if (score < 60) {
+  if (score < 75) {
     return "medium";
   }
 
-  if (score < 85) {
+  if (score < 90) {
     return "high";
   }
 
   return "critical";
+}
+
+function evidenceMentionsKnownRef(description: string, allowedRefs: Set<string>): boolean {
+  for (const ref of allowedRefs) {
+    if (description.includes(ref)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function toAscii(value: string): string {
