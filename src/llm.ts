@@ -87,7 +87,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
   const baseUrl = options.baseUrl ?? requireEnv("LLM_BASE_URL");
   const model = options.model ?? requireEnv("LLM_MODEL");
   const timeoutMs = options.timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS ?? 120_000);
-  const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 2_048);
+  const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 8_192);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
