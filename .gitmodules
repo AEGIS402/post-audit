@@ -1,0 +1,3 @@
+[submodule "escrow-hook"]
+	path = escrow-hook
+	url = git@github.com:AEGIS402/escrow-hook.git

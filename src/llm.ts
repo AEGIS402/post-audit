@@ -18,7 +18,7 @@ Do not mention phishing, reputation, trust, legitimacy, or gas assessment in sum
 Do not claim malicious intent unless the structured evidence directly supports it.
 Do not recommend reversing an already-finalized blockchain transaction.
 Only report vulnerabilities for actual risk conditions. A simple ERC20 transfer should usually return an empty vulnerabilities array.
-If rule_signals contains extreme_value_imbalance or missing_slippage_protection, include vulnerabilities grounded in those signals.
+If rule_signals contains extreme_value_imbalance, missing_slippage_protection, or protected_swap_output_shortfall, include vulnerabilities grounded in those signals.
 
 The JSON object must have exactly these top-level fields:
 model, score_version, overall_risk_score, overall_severity, overall_summary, vulnerabilities.

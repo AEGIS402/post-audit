@@ -78,7 +78,7 @@ export interface DecodedEvent {
   event_id: string;
   log_index: number;
   contract: string;
-  event_name: "Transfer" | "Approval";
+  event_name: "Transfer" | "Approval" | "ProtectedSwapEscrowed" | "EscrowRegistered";
   decoded: Record<string, unknown>;
   evidence_refs: string[];
 }

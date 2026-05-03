@@ -200,6 +200,64 @@ Actual response captured through the API server:
 }
 ```
 
+## Insured Escrow E2E
+
+The submodule `escrow-hook/` is an audit-responsive Uniswap v4 hook that escrows
+the swap output until an audit agent calls `executeAuditDecision`. The script
+[`scripts/e2e-escrow.ts`](scripts/e2e-escrow.ts) drives the full
+victim-swap -> post-audit -> on-chain decision -> insurance settlement loop
+against the deployed escrow-hook contracts on Sepolia.
+
+Two scenarios run in one go:
+
+- **normal**: user swaps 100 USDT through `protectedExactInputSingle`. Audit
+  returns `info` (no rule signal fires). Decision: `RELEASE`. User receives
+  the escrowed AEGIS.
+- **sandwich**: an attacker front-runs a 500k USDT swap, then the same user
+  swap, then back-runs. The victim's escrowed output is materially below the
+  user-stated `expectedOutput`, so the
+  `protected_swap_output_shortfall` rule signal fires and the LLM returns
+  `high`. Decision: `BLOCK_AND_CLAIM`. Vault forwards the suspicious AEGIS to
+  `InsurancePool`, and `InsurancePool` refunds the user's original USDT input
+  amount as the insurance claim. The 0.5% protection fee is the only sunk cost
+  to the user.
+
+Required env (in `.env`):
+
+```
+SEPOLIA_RPC_URL=<archive-capable Sepolia RPC>
+PRIVATE_KEY=0x<deployer key matching escrow-hook initialConfig.finalOwner>
+LLM_BASE_URL=<OpenAI-compatible URL ending in /v1>
+LLM_MODEL=<model name>
+```
+
+Run against an in-process Sepolia fork (Hardhat 3 `edr-simulated` + `forking`,
+no separate node needed):
+
+```bash
+npm run e2e:escrow:fork
+```
+
+Or against live Sepolia (uses gas; the script regenerates ephemeral
+auditor/user/attacker wallets and funds them from `PRIVATE_KEY`):
+
+```bash
+npm run e2e:escrow:live
+```
+
+Both modes write `deployments/e2e-escrow-result.json` containing the swap and
+decision tx hashes, the audit JSON for each scenario, and the final escrow
+state and balance changes.
+
+The orchestrator does not modify either repo's contracts. The mapping from
+`overall_severity` to `AuditDecision.action` is:
+
+| `overall_severity` | `AuditDecision.action` |
+| --- | --- |
+| `info`, `low` | `RELEASE` |
+| `medium` | `RELEASE` (with stderr warning; production should require human review) |
+| `high`, `critical` | `BLOCK_AND_CLAIM` |
+
 ## v1 Scope
 
 - ERC20 `transfer`, `approve`, `transferFrom` calldata decode.
@@ -207,6 +265,9 @@ Actual response captured through the API server:
 - Subject-centric ERC20/native ETH flows.
 - ERC20 approval risk signals.
 - Uniswap V3 `exactInputSingle` decode with value imbalance and zero `amountOutMinimum` signals.
+- AEGIS Protected Swap Adapter `protectedExactInputSingle` calldata decode.
+- AEGIS Insured Escrow `EscrowRegistered` and `ProtectedSwapEscrowed` log decode.
+- `protected_swap_output_shortfall` rule signal driven by escrow `outputAmount` vs user-stated `expectedOutput`.
 - LLM output JSON parse/schema/evidence validation.
 
 Out of scope for v1: ERC721, selector DB lookup, external labels, compliance lists, debug traces, internal call tree, and full state diff.

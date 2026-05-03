@@ -8,7 +8,9 @@
     "test": "hardhat test",
     "api": "hardhat run scripts/api-server.ts --network mainnet",
     "audit:tx": "hardhat run scripts/audit-tx.ts --network mainnet",
-    "audit:fixture": "hardhat run scripts/audit-fixture.ts"
+    "audit:fixture": "hardhat run scripts/audit-fixture.ts",
+    "e2e:escrow:fork": "hardhat run scripts/e2e-escrow.ts --network hardhatSepolia",
+    "e2e:escrow:live": "hardhat run scripts/e2e-escrow.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.4",

@@ -1,4 +1,4 @@
-import { erc20Interface, uniswapV3RouterInterface } from "./abis.js";
+import { aegisAdapterInterface, aegisEscrowInterface, erc20Interface, uniswapV3RouterInterface } from "./abis.js";
 import { decodeTokenMetadata, tokenMetadataMap } from "./metadata.js";
 import { findTokenPrice, resolveTokenPrices } from "./prices.js";
 import type {
@@ -37,7 +37,7 @@ export function buildAuditPayload(rawInput: RawRpcInput, options: BuildPayloadOp
   const decodedEvents = decodeEvents(rawInput, tokenMetadata);
   const assetFlows = buildAssetFlows(rawInput, decodedEvents, tokenMetadata, prices);
   const approvalChanges = buildApprovalChanges(rawInput, decodedEvents, tokenMetadata);
-  const ruleSignals = buildRuleSignals(decodedCall, assetFlows, approvalChanges, execution);
+  const ruleSignals = buildRuleSignals(decodedCall, decodedEvents, assetFlows, approvalChanges, execution);
 
   return {
     task: "post_transaction_audit",
@@ -168,7 +168,7 @@ function decodeCall(rawInput: RawRpcInput, tokenMetadata: TokenMetadata[]): Deco
   const value = tx.value === undefined ? 0 : hexToBigInt(tx.value);
   const tokens = tokenMetadataMap(tokenMetadata);
 
-  for (const iface of [erc20Interface, uniswapV3RouterInterface]) {
+  for (const iface of [erc20Interface, uniswapV3RouterInterface, aegisAdapterInterface]) {
     try {
       const parsed = iface.parseTransaction({ data: input, value });
       if (parsed === null) {
@@ -181,6 +181,10 @@ function decodeCall(rawInput: RawRpcInput, tokenMetadata: TokenMetadata[]): Deco
 
       if (parsed.name === "exactInputSingle") {
         return decodeExactInputSingle(parsed.args[0], methodId, tokens);
+      }
+
+      if (parsed.name === "protectedExactInputSingle") {
+        return decodeProtectedExactInputSingle(parsed.args[0], methodId, tokens);
       }
     } catch {
       // Try the next ABI.
@@ -266,6 +270,49 @@ function decodeErc20Call(
   };
 }
 
+function decodeProtectedExactInputSingle(
+  request: Record<string, unknown>,
+  methodId: string,
+  tokens: Map<string, TokenMetadata>,
+): DecodedCall {
+  const key = (request.key ?? {}) as Record<string, unknown>;
+  const zeroForOne = Boolean(request.zeroForOne);
+  const currency0 = checksumAddress(String(key.currency0));
+  const currency1 = checksumAddress(String(key.currency1));
+  const inputToken = zeroForOne ? currency0 : currency1;
+  const outputToken = zeroForOne ? currency1 : currency0;
+  const inputMetadata = tokens.get(inputToken.toLowerCase());
+  const outputMetadata = tokens.get(outputToken.toLowerCase());
+  const inputAsset = inputMetadata?.symbol ?? inputToken;
+  const outputAsset = outputMetadata?.symbol ?? outputToken;
+  const amountInRaw = BigInt(String(request.amountIn)).toString();
+  const expectedOutputRaw = BigInt(String(request.expectedOutput)).toString();
+  const amountInHuman = formatTokenAmount(amountInRaw, inputMetadata?.decimals);
+  const expectedOutputHuman = formatTokenAmount(expectedOutputRaw, outputMetadata?.decimals);
+
+  return {
+    function: "protectedExactInputSingle",
+    method_id: methodId,
+    protocol: "AEGIS Protected Swap Adapter (Uniswap v4)",
+    params: {
+      tradeId: String(request.tradeId),
+      settlementRecipient: checksumAddress(String(request.settlementRecipient)),
+      tokenIn: inputToken,
+      tokenOut: outputToken,
+      fee: Number(key.fee),
+      tickSpacing: Number(key.tickSpacing),
+      hooks: checksumAddress(String(key.hooks)),
+      zeroForOne,
+      amountIn_raw: amountInRaw,
+      amountIn_human: amountInHuman === undefined ? undefined : `${amountInHuman} ${inputAsset}`,
+      expectedOutput_raw: expectedOutputRaw,
+      expectedOutput_human: expectedOutputHuman === undefined ? undefined : `${expectedOutputHuman} ${outputAsset}`,
+      sqrtPriceLimitX96: BigInt(String(request.sqrtPriceLimitX96)).toString(),
+    },
+    evidence_refs: ["tx.raw.input"],
+  };
+}
+
 function decodeExactInputSingle(params: Record<string, unknown>, methodId: string, tokens: Map<string, TokenMetadata>): DecodedCall {
   const tokenIn = checksumAddress(String(params.tokenIn));
   const tokenOut = checksumAddress(String(params.tokenOut));
@@ -315,6 +362,83 @@ function decodeEvents(rawInput: RawRpcInput, tokenMetadata: TokenMetadata[]): De
     const address = typeof logRecord.address === "string" ? checksumAddress(logRecord.address) : undefined;
     if (address === undefined) {
       return;
+    }
+
+    try {
+      const escrowParsed = aegisEscrowInterface.parseLog({ topics, data });
+      if (escrowParsed !== null) {
+        if (escrowParsed.name === "ProtectedSwapEscrowed") {
+          const inputToken = checksumAddress(String(escrowParsed.args.inputToken));
+          const outputToken = checksumAddress(String(escrowParsed.args.outputToken));
+          const inputMeta = tokens.get(inputToken.toLowerCase());
+          const outputMeta = tokens.get(outputToken.toLowerCase());
+          const inputAsset = inputMeta?.symbol ?? inputToken;
+          const outputAsset = outputMeta?.symbol ?? outputToken;
+          const inputAmountRaw = BigInt(String(escrowParsed.args.inputAmount)).toString();
+          const outputAmountRaw = BigInt(String(escrowParsed.args.outputAmount)).toString();
+          const expectedOutputRaw = BigInt(String(escrowParsed.args.expectedOutput)).toString();
+          const inputAmountHuman = formatTokenAmount(inputAmountRaw, inputMeta?.decimals);
+          const outputAmountHuman = formatTokenAmount(outputAmountRaw, outputMeta?.decimals);
+          const expectedOutputHuman = formatTokenAmount(expectedOutputRaw, outputMeta?.decimals);
+          const outputAmountNumber = amountToNumber(outputAmountRaw, outputMeta?.decimals);
+          const expectedOutputNumber = amountToNumber(expectedOutputRaw, outputMeta?.decimals);
+          let outputVsExpectedRatio: string | undefined;
+          let outputShortfallPct: string | undefined;
+          if (
+            outputAmountNumber !== undefined &&
+            expectedOutputNumber !== undefined &&
+            expectedOutputNumber > 0
+          ) {
+            const ratio = outputAmountNumber / expectedOutputNumber;
+            outputVsExpectedRatio = formatRatio(ratio);
+            outputShortfallPct = `${formatRatio((1 - ratio) * 100, 2)}%`;
+          }
+          decodedEvents.push({
+            event_id: `log#${index}`,
+            log_index: index,
+            contract: address,
+            event_name: "ProtectedSwapEscrowed",
+            decoded: {
+              trade_id: String(escrowParsed.args.tradeId),
+              user: checksumAddress(String(escrowParsed.args.user)),
+              settlement_recipient: checksumAddress(String(escrowParsed.args.settlementRecipient)),
+              input_token: inputToken,
+              input_asset: inputAsset,
+              input_amount_raw: inputAmountRaw,
+              input_amount_human: inputAmountHuman === undefined ? undefined : `${inputAmountHuman} ${inputAsset}`,
+              output_token: outputToken,
+              output_asset: outputAsset,
+              output_amount_raw: outputAmountRaw,
+              output_amount_human: outputAmountHuman === undefined ? undefined : `${outputAmountHuman} ${outputAsset}`,
+              expected_output_raw: expectedOutputRaw,
+              expected_output_human:
+                expectedOutputHuman === undefined ? undefined : `${expectedOutputHuman} ${outputAsset}`,
+              output_vs_expected_ratio: outputVsExpectedRatio,
+              output_shortfall_pct: outputShortfallPct,
+            },
+            evidence_refs: [`receipt.raw.logs[${index}]`],
+          });
+          return;
+        }
+        if (escrowParsed.name === "EscrowRegistered") {
+          decodedEvents.push({
+            event_id: `log#${index}`,
+            log_index: index,
+            contract: address,
+            event_name: "EscrowRegistered",
+            decoded: {
+              escrow_id: String(escrowParsed.args.escrowId),
+              subject: checksumAddress(String(escrowParsed.args.subject)),
+              beneficiary: checksumAddress(String(escrowParsed.args.beneficiary)),
+              policy_hash: String(escrowParsed.args.policyHash),
+            },
+            evidence_refs: [`receipt.raw.logs[${index}]`],
+          });
+          return;
+        }
+      }
+    } catch {
+      // Not an escrow event; fall through.
     }
 
     try {
@@ -491,6 +615,7 @@ function buildApprovalChanges(
 
 function buildRuleSignals(
   decodedCall: DecodedCall | undefined,
+  events: DecodedEvent[],
   flows: AssetFlow[],
   approvals: ApprovalChange[],
   execution: ExecutionInfo,
@@ -536,8 +661,62 @@ function buildRuleSignals(
   }
 
   addSwapSignals(signals, decodedCall, flows);
+  addProtectedSwapShortfallSignal(signals, events);
 
   return signals;
+}
+
+function addProtectedSwapShortfallSignal(signals: RuleSignal[], events: DecodedEvent[]): void {
+  for (const event of events) {
+    if (event.event_name !== "ProtectedSwapEscrowed") {
+      continue;
+    }
+    const outputRaw = String(event.decoded.output_amount_raw ?? "0");
+    const expectedRaw = String(event.decoded.expected_output_raw ?? "0");
+    const outputBig = BigInt(outputRaw);
+    const expectedBig = BigInt(expectedRaw);
+    if (expectedBig === 0n) {
+      // User did not assert an expected output; nothing to compare against.
+      continue;
+    }
+    if (outputBig >= expectedBig) {
+      // Met or exceeded user expectation; no shortfall.
+      continue;
+    }
+
+    const shortfallBig = expectedBig - outputBig;
+    const shortfallPctNumber = Number((shortfallBig * 10000n) / expectedBig) / 100;
+    let severityHint: "medium" | "high" | "critical";
+    if (shortfallPctNumber >= 30) {
+      severityHint = "critical";
+    } else if (shortfallPctNumber >= 15) {
+      severityHint = "high";
+    } else if (shortfallPctNumber >= 5) {
+      severityHint = "medium";
+    } else {
+      // Within normal slippage tolerance.
+      continue;
+    }
+
+    signals.push({
+      signal_id: `sig#${signals.length}`,
+      type: "protected_swap_output_shortfall",
+      severity_hint: severityHint,
+      description:
+        `AEGIS protected swap escrow output is ${event.decoded.output_amount_human ?? outputRaw} ` +
+        `against user-stated expected output ${event.decoded.expected_output_human ?? expectedRaw} ` +
+        `(${formatRatio(shortfallPctNumber, 2)}% shortfall). ` +
+        "A shortfall this large versus the user's own expected output is a strong indicator of sandwich, MEV, or other adversarial price impact on the protected swap.",
+      computed: {
+        output_amount_raw: outputRaw,
+        expected_output_raw: expectedRaw,
+        shortfall_raw: shortfallBig.toString(),
+        shortfall_pct: `${formatRatio(shortfallPctNumber, 2)}%`,
+        output_vs_expected_ratio: event.decoded.output_vs_expected_ratio ?? undefined,
+      },
+      evidence_refs: [event.event_id],
+    });
+  }
 }
 
 function addSwapSignals(signals: RuleSignal[], decodedCall: DecodedCall | undefined, flows: AssetFlow[]): void {

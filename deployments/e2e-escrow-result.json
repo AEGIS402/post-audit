@@ -1,0 +1,89 @@
+{
+  "note": "End-to-end pipeline: victim swap -> EscrowRegistered -> post-audit (RPC + LLM, ProtectedSwapEscrowed decoded with output_amount vs expected_output) -> protected_swap_output_shortfall rule signal -> severity threshold mapping -> AuditDecision -> insurance settlement. Normal swap should land in info/RELEASE; sandwich victim swap should land in high|critical/BLOCK_AND_CLAIM with insurance pool refunding the user's input principal.",
+  "network": {
+    "chainId": "31337"
+  },
+  "deployment": {
+    "aegisDemoDeployer": "0xb87A1BDB10B79dA2a5dB9EeDb8949c247Fd55bA2",
+    "usdt": "0xdEFf5dE317F4636498a58D7D7dd0bc9c178e816f",
+    "aegis": "0x788AAa4E8da43480d24FB900c6685274441DBBA0",
+    "insurancePool": "0xFEA84989fAF5ee2Ee0e6413A4F6b67e1d7d7F341",
+    "vault": "0x014A0A4239bE3450bab6A59bba32BecC9e372bc3",
+    "hook": "0x2d8b972f069D448040C4B8C3FfdD491fF25E8044",
+    "adapter": "0x78159564738C31B0D31982256bBbE81bEE9aBc09"
+  },
+  "actors": {
+    "owner": "0x2f149CaA0e931e13f6F32bd3E46eFc6e96bcC36A",
+    "auditor": "0xaDbD66c58a8fCcd37d8087b821696254d3A1Ac8D",
+    "user": "0x9340D6c89E820769a2EAfAe606c2b7489a7ab2eD",
+    "attacker": "0x1f54dB651D76b101dCc24D038091f7b12c9629A7"
+  },
+  "severityToActionPolicy": {
+    "info": "RELEASE",
+    "low": "RELEASE",
+    "medium": "RELEASE (with stderr warning; prod should require human review)",
+    "high": "BLOCK_AND_CLAIM",
+    "critical": "BLOCK_AND_CLAIM"
+  },
+  "normalCase": {
+    "label": "normal",
+    "tradeId": "0x16a9c2664f6673c9d1ffa1c3f93872270c76b6cfe9faffabd025567e9cf50d7d",
+    "swapTxHash": "0xfc7967e3f41bc7f38c2bdec9023668f8f51d8fbf92bcff8f3fa1fbb9a067802c",
+    "decisionTxHash": "0x9947644cd65cb67a38e8cce6ecc8566e40fab5af9854eb0c9bc7c4ec14cf5b6e",
+    "audit": {
+      "model": "gpt-oss-120b",
+      "score_version": "risk-v1",
+      "overall_risk_score": 0,
+      "overall_severity": "info",
+      "overall_summary": "The transaction executed a protectedExactInputSingle swap, sending 100.5 USDT from the subject address and receiving 99.44 AEGIS, with no risky conditions detected.",
+      "vulnerabilities": []
+    },
+    "chosenAction": "RELEASE",
+    "reasonCode": "CLEAN",
+    "finalEscrowState": "2",
+    "pendingOutputAegis": "99.444764112473739573",
+    "userAegisAfter": "99.444764112473739573",
+    "userUsdtAfter": "9899.5",
+    "insuranceAegisAfter": "1000137.074316917335233568"
+  },
+  "sandwichCase": {
+    "label": "sandwich",
+    "tradeId": "0xfb22b77a5701e44173b6f11a283b5f8928a45c9909e85bc5a5ea8f48380705cb",
+    "swapTxHash": "0xe14368f7548b4a33dc2f723d2add8ccf1b496f6f0f26407182a7c0c07c626372",
+    "decisionTxHash": "0x62450cd99f5a028154e9f125398fd664b8696a6087fe400f843f1be661e49165",
+    "audit": {
+      "model": "gpt-oss-120b",
+      "score_version": "risk-v1",
+      "overall_risk_score": 80,
+      "overall_severity": "high",
+      "overall_summary": "The transaction performed a protected swap of 100 USDT expecting 99 AEGIS, but only 73.15 AEGIS was received, resulting in a 26.11% shortfall and indicating a potential adverse price impact or sandwich attack.",
+      "vulnerabilities": [
+        {
+          "id": "V-001",
+          "title": "Protected Swap Output Shortfall",
+          "severity": "high",
+          "risk_score": 80,
+          "confidence_score": 90,
+          "impact_score": 80,
+          "exploitability_score": 30,
+          "summary": "The protected swap escrow emitted an output of 73.146657748428651291 AEGIS against the user-stated expected output of 99 AEGIS, a shortfall of 26.11%. This discrepancy suggests that the swap was executed under unfavorable market conditions, possibly due to sandwiching, MEV, or other price manipulation, exposing the user to financial loss.",
+          "remediation": "Implement stricter slippage protection or limit orders for protected swaps, verify on-chain price data before execution, and consider using price oracles with time-weighted averages. Users should also monitor for abnormal price impact and avoid large swaps in low-liquidity pools.",
+          "evidence": [
+            {
+              "line_start": null,
+              "line_end": null,
+              "description": "Evidence refs: log#8."
+            }
+          ]
+        }
+      ]
+    },
+    "chosenAction": "BLOCK_AND_CLAIM",
+    "reasonCode": "SANDWICH",
+    "finalEscrowState": "3",
+    "pendingOutputAegis": "73.146657748428651291",
+    "userAegisAfter": "99.444764112473739573",
+    "userUsdtAfter": "19899.0",
+    "insuranceAegisAfter": "1000210.220974665763884859"
+  }
+}

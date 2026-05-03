@@ -32,5 +32,17 @@ export default defineConfig({
       chainType: "l1",
       url: configVariable("MAINNET_RPC_URL"),
     },
+    sepolia: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("SEPOLIA_RPC_URL"),
+    },
+    hardhatSepolia: {
+      type: "edr-simulated",
+      chainType: "l1",
+      forking: {
+        url: configVariable("SEPOLIA_RPC_URL"),
+      },
+    },
   },
 });
