@@ -1,0 +1,16 @@
+node_modules
+artifacts
+cache
+coverage
+dist
+types
+.git
+.env
+escrow-hook/contracts
+escrow-hook/scripts
+escrow-hook/test
+escrow-hook/node_modules
+escrow-hook/cache
+escrow-hook/artifacts
+deployments/e2e-escrow-result.json
+*.log

@@ -11,6 +11,9 @@ const { ethers } = await network.create();
 const server = createAuditApiServer({
   provider: ethers.provider,
   priceOverrides: parsePriceOverrides(),
+  ownerKey: process.env.PRIVATE_KEY,
+  normalTraderKey: process.env.NORMAL_TRADER_KEY,
+  sandwichTraderKey: process.env.SANDWICH_TRADER_KEY,
 });
 
 server.listen(port, host, () => {
