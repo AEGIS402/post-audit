@@ -1,0 +1,141 @@
+{
+  "chain": "ethereum",
+  "purpose": "Few-shot LLM samples: 1 best-case tx hash per category. The `rationale` field summarizes why this tx is the strongest demonstration of its category for prompt tuning.",
+  "normal": [
+    {
+      "category": "erc20_transfer",
+      "tx_hash": "0xd3d20561b8a25ba99200d691e07008ce0649c0514890f70ec055bd53f9197f13",
+      "rationale": "Single ERC20 transfer with one Transfer event and no Approval event. Pipeline fires only `simple_erc20_transfer` (info; filtered out). Should be classified low risk; serves as the negative anchor for `unlimited_approval` and `phishing_drainer` few-shots."
+    },
+    {
+      "category": "erc721_transfer",
+      "tx_hash": "0x2287701b01cbe8cbfa4570ad93581962b1dcfcfc1a2b0d6134ad324ad84e3ef0",
+      "rationale": "Plain ERC721 transfer (4-topic Transfer with indexed tokenId). No rule signal fires. Negative anchor for `nft_setapprovalforall` — LLM should distinguish a single NFT move from a collection-wide approval."
+    },
+    {
+      "category": "swap",
+      "tx_hash": "0x9827fb6b1431cc5a162bbada4b568707b1e0e7448aec08e5b3a50ae039e32f0a",
+      "rationale": "Multi-token swap where input/output are reasonably balanced; tx.from appears as both sender and receiver across token Transfers. May fire `erc20_approval_change` (medium) when the swap path includes an allowance reset. Negative anchor for `missing_slippage` and `mev_arbitrage`."
+    }
+  ],
+  "abnormal": [
+    {
+      "category": "failed_tx",
+      "tx_hash": "0xe5c7609070505c7e250b0a10dccc14c1f10c5aa4538fee447c6f3dcd606737b4",
+      "rationale": "Plain ERC20 transfer that reverted (status 0x0). Pipeline fires `transaction_failed` (medium). Best because the failure cause is observable from the receipt alone with no other signals to confound interpretation.",
+      "signals": [
+        {
+          "type": "transaction_failed",
+          "severity_hint": "medium",
+          "description": "Transaction receipt status is failed."
+        }
+      ]
+    },
+    {
+      "category": "unlimited_approval",
+      "tx_hash": "0x28cd49edd23c7d90235eaa178c1eb3bc056991bcd13d024b9b790757cdd909be",
+      "rationale": "ERC20 approve(spender, MaxUint256). Pipeline fires `unlimited_erc20_approval` (high). Canonical example: subject grants indefinite spend authority on a single token to a single spender.",
+      "signals": [
+        {
+          "type": "unlimited_erc20_approval",
+          "severity_hint": "high",
+          "description": "Subject granted unlimited MRGA allowance to 0x80a64c6D7f12C47B7c66c5B4E20E72bc1FCd5d9e."
+        }
+      ]
+    },
+    {
+      "category": "missing_slippage",
+      "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106",
+      "rationale": "Uniswap V3 exactInputSingle with amountOutMinimum=0 swapping 220,806 USDC for 5,272 USDT (~97.6% loss). Fires BOTH `missing_slippage_protection` (critical) and `extreme_value_imbalance` (critical) since stablecoins are USD-priced. Multi-signal composite — gold standard sandwich-victim demonstration.",
+      "source": "PROPOSAL.md README example",
+      "note": "USDC->USDT 97.6% loss with amountOutMinimum=0",
+      "signals": [
+        {
+          "type": "extreme_value_imbalance",
+          "severity_hint": "critical",
+          "description": "Subject sent approximately 220806.389669 USD and received approximately 5272.998058 USD."
+        },
+        {
+          "type": "missing_slippage_protection",
+          "severity_hint": "critical",
+          "description": "Decoded exactInputSingle calldata has amountOutMinimum set to zero."
+        }
+      ]
+    },
+    {
+      "category": "hack_exploit",
+      "tx_hash": "0xc310a0affe2169d1f6feec1c63dbc7f7c62a887fa48795d327d4d2da2d6b111d",
+      "rationale": "Euler Finance flash loan attack primary tx (Mar 2023, $197M). Custom selector means decoded_call=unknown; the subject's ERC20 flow is the only readable evidence. Best demonstrates pipeline's reliance on event flow when calldata is opaque, and shows borrow→liquidate→profit shape across many transfers.",
+      "source": "Euler Finance hack 2023-03-13",
+      "note": "Cyfrin reference"
+    },
+    {
+      "category": "hack_recovery",
+      "tx_hash": "0xb76754124fdde090f25129105ed2907e3c62e0db87ecb8ffcefcb1dede0954fd",
+      "rationale": "Curve attacker returning funds to deployer (Jul 2023). Pipeline fires no signal. Important negative example: a transfer from a known attacker address looks suspicious, but the destination (deployer) and direction signal recovery, not a new attack.",
+      "source": "Curve Finance Vyper reentrancy 2023-07-30",
+      "note": "Funds returned to deployer"
+    },
+    {
+      "category": "sandwich_victim",
+      "tx_hash": "0xee9fcd2b9996e96b642cb4cda47fc140f98fdaf07ee02657743d4bfcc4670106",
+      "rationale": "Same tx as missing_slippage. Sandwich-victim is the framing: subject sent 220,806 USDC and received only 5,272 USDT. The loss profile (output_input_ratio < 0.5) is what makes this the canonical victim case beyond the slippage flag itself.",
+      "source": "PROPOSAL.md README example",
+      "note": "USDC->USDT 97.6% loss with amountOutMinimum=0",
+      "signals": [
+        {
+          "type": "extreme_value_imbalance",
+          "severity_hint": "critical",
+          "description": "Subject sent approximately 220806.389669 USD and received approximately 5272.998058 USD."
+        },
+        {
+          "type": "missing_slippage_protection",
+          "severity_hint": "critical",
+          "description": "Decoded exactInputSingle calldata has amountOutMinimum set to zero."
+        }
+      ]
+    },
+    {
+      "category": "phishing_drainer",
+      "tx_hash": "0xc65093b52fcf395f23fb7195a6fd5758b9a3eb1ccd0e3572754690d3a2a2c27c",
+      "rationale": "transferFrom moving USDC from victim to a known Angel Drainer phishing address. Pipeline fires only `simple_erc20_transfer` (info; filtered out). Best as a negative-of-the-pipeline example: looks like a normal transfer on-chain — only external phishing labels distinguish it. Useful to teach LLM what it cannot detect without those labels.",
+      "source": "Etherscan Angel Drainer transfer",
+      "note": "USDC transfer from victim to Angel Drainer"
+    },
+    {
+      "category": "mev_arbitrage",
+      "tx_hash": "0x973cd5908d1ac430771688370f4c70405a887500abfe7d525ca215cd091d81d8",
+      "rationale": "Searcher arbitrage tx with 8 ERC20 Transfer events across multiple tokens but no rule signal fires. LLM should infer arbitrage shape from net-positive subject balance across multiple paired token movements rather than a per-flow loss.",
+      "source": "Etherscan Information Center MEV example",
+      "note": "Arbitrage MEV transaction"
+    },
+    {
+      "category": "permit2_signature_drain",
+      "tx_hash": "0xf4a288d6a5400d0fcfd06f052804ae7d40c05f623401bc003c162d67a08a22cb",
+      "rationale": "transferFrom executed using an off-chain Permit2 signature — there is no on-chain approve preceding it. Pipeline doesn't model Permit2; no rule signal. Best for teaching the LLM to flag transferFrom whose authorization isn't visible in on-chain history.",
+      "source": "SlowMist permit signature phishing analysis",
+      "note": "Off-chain Permit signature exploited to transferFrom victim assets"
+    },
+    {
+      "category": "address_poisoning",
+      "tx_hash": "0x2675aaf5db84f9f966c431ff82f2173d3251020b11b4939b4961ebedf92c78dd",
+      "rationale": "Large USDT loss to a lookalike address (Tether blacklisted attacker within 1h). Pipeline only sees a normal transfer. Best example of why short-prefix/suffix address comparison fails — LLM should warn whenever subject sends to an address whose history shows recent zero-value or dust seeding.",
+      "source": "arxiv 2501.16681 Blockchain Address Poisoning",
+      "note": "Large USDT phishing case; Tether blocked attacker address within 1 hour"
+    },
+    {
+      "category": "nft_setapprovalforall",
+      "tx_hash": "0xb9c55f6b894ee251649b0279ae50b52fa27f103ce7fe82d96726414013c8ec8c",
+      "rationale": "ERC721 setApprovalForAll(operator, true) — collection-wide delegation. Pipeline (v1) doesn't decode this selector. Parallel to unlimited ERC20 approval but for an entire NFT collection at once; LLM should treat it as same-or-higher severity than unlimited_erc20_approval.",
+      "source": "RPC scan of recent blocks",
+      "note": "ERC721 setApprovalForAll(operator, true) call - collection-wide delegation"
+    },
+    {
+      "category": "wallet_drain",
+      "tx_hash": "0x784c29ab03b5c47adbb7ec6ada61c05b212efaf71f744a01a6738d2d53b20f51",
+      "rationale": "Subject is sender on multiple ERC20 Transfer events spanning 2+ distinct tokens within one tx — multi-asset outflow in a single transaction. Pipeline doesn't have a multi-outflow rule yet. LLM should detect by counting `from == subject` across decoded events and flagging when count >= 2 distinct tokens.",
+      "source": "RPC scan of recent blocks",
+      "note": "Subject as sender on multiple ERC20 Transfer events spanning 2+ tokens (multi-asset outflow pattern)"
+    }
+  ]
+}
