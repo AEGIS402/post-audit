@@ -27,6 +27,9 @@ const MAX_PRICE_LIMIT = 1461446703485210103287273052203988822378723970341n;
 const TOKEN_BALANCE_HEADROOM_MULTIPLIER = 100n;
 const PROTECTION_FEE_BPS = 50n;
 const BPS_DENOMINATOR = 10_000n;
+const AUTO_EXPECTED_OUTPUT_BPS = 9_900n;
+const ESCROW_STATE_READ_TIMEOUT_MS = 30_000;
+const ESCROW_STATE_READ_POLL_MS = 1_000;
 const AUDIT_ACTION_RELEASE = 0;
 const AUDIT_ACTION_BLOCK_AND_CLAIM = 1;
 
@@ -156,6 +159,18 @@ function protectionFee(amountIn: bigint): bigint {
   return (amountIn * PROTECTION_FEE_BPS) / BPS_DENOMINATOR;
 }
 
+function decodeBalanceDelta(delta: bigint): { amount0: bigint; amount1: bigint } {
+  const raw = BigInt.asUintN(256, delta);
+  return {
+    amount0: BigInt.asIntN(128, raw >> 128n),
+    amount1: BigInt.asIntN(128, raw & ((1n << 128n) - 1n)),
+  };
+}
+
+function quoteBufferedExpectedOutput(quotedOutput: bigint): bigint {
+  return (quotedOutput * AUTO_EXPECTED_OUTPUT_BPS) / BPS_DENOMINATOR;
+}
+
 function decodeEscrowId(
   receipt: { logs: ReadonlyArray<{ address: string; topics: ReadonlyArray<string> }> },
   vault: string,
@@ -281,6 +296,57 @@ async function plainSwap(
   await tx.wait();
 }
 
+async function waitForEscrowState(
+  vault: AnyContract,
+  tradeId: string,
+  expectedState: bigint,
+  label: string,
+): Promise<any> {
+  const deadline = Date.now() + ESCROW_STATE_READ_TIMEOUT_MS;
+  let lastEscrow: any;
+
+  while (true) {
+    lastEscrow = await vault.escrows(tradeId);
+    if (BigInt(lastEscrow.state) === expectedState) {
+      return lastEscrow;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out waiting for ${label} escrow ${tradeId} to reach state ${expectedState}; last state ${lastEscrow.state}`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, ESCROW_STATE_READ_POLL_MS));
+  }
+}
+
+async function quotePoolSwapOutput(args: {
+  poolSwapTest: AnyContract;
+  user: ManagedAccount;
+  key: PoolKey;
+  zeroForOne: boolean;
+  amountIn: bigint;
+  sqrtPriceLimitX96: bigint;
+}): Promise<bigint> {
+  const swapper = args.poolSwapTest.connect(args.user.signer as Signer) as AnyContract;
+  const delta: bigint = await swapper.swap.staticCall(
+    args.key,
+    {
+      zeroForOne: args.zeroForOne,
+      amountSpecified: -args.amountIn,
+      sqrtPriceLimitX96: args.sqrtPriceLimitX96,
+    },
+    { takeClaims: false, settleUsingBurn: false },
+    "0x",
+    { gasLimit: 4_000_000 },
+  );
+  const decoded = decodeBalanceDelta(delta);
+  const output = args.zeroForOne ? decoded.amount1 : decoded.amount0;
+  if (output <= 0n) {
+    throw new Error(`Unable to auto-quote protected swap output; decoded output=${output}`);
+  }
+  return output;
+}
+
 function buildExplainer(scenario: "normal" | "sandwich", r: Partial<ScenarioResult>): string {
   if (scenario === "normal") {
     return [
@@ -359,9 +425,50 @@ export async function runScenarioLive(args: {
 
     const { key: poolKey, usdtIsZero } = buildPoolKey(deployment);
     const amountIn = parseEther(args.options?.amountIn ?? "100");
-    const expectedOutput = parseEther(args.options?.expectedOutput ?? "99");
     const usdtToAegisLimit = usdtIsZero ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT;
     const aegisToUsdtLimit = usdtIsZero ? MAX_PRICE_LIMIT : MIN_PRICE_LIMIT;
+    const protectedSwapSpend = amountIn + protectionFee(amountIn);
+    const tradeId = id(`api-scenario-${args.scenario}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`);
+    const reasonCode = args.scenario === "normal" ? "CLEAN" : "SANDWICH";
+
+    log(`prepare ${formatEther(protectedSwapSpend)} USDT spend for protected swap, approve adapter`);
+    await ensureMintedBalanceAndApproval(
+      usdt,
+      user,
+      protectedSwapSpend,
+      adapter.target as string,
+      "USDT",
+      "protected swap",
+      log,
+    );
+
+    let quotedOutput: bigint | undefined;
+    if (args.options?.expectedOutput === undefined) {
+      await ensureTokenApproval(
+        usdt,
+        user,
+        poolSwapTest.target as string,
+        amountIn,
+        "USDT",
+        "quote",
+        log,
+      );
+      quotedOutput = await quotePoolSwapOutput({
+        poolSwapTest,
+        user,
+        key: poolKey,
+        zeroForOne: usdtIsZero,
+        amountIn,
+        sqrtPriceLimitX96: usdtToAegisLimit,
+      });
+    }
+    const expectedOutput =
+      quotedOutput === undefined ? parseEther(args.options!.expectedOutput!) : quoteBufferedExpectedOutput(quotedOutput);
+    if (args.options?.expectedOutput === undefined) {
+      log(
+        `auto expectedOutput from current pool quote: quote=${formatEther(quotedOutput!)} AEGIS expected=${formatEther(expectedOutput)} AEGIS (99% buffered)`,
+      );
+    }
 
     let attackerBackRunAegis = 0n;
     if (args.scenario === "sandwich" && attacker) {
@@ -391,21 +498,6 @@ export async function runScenarioLive(args: {
         log,
       );
     }
-
-    const protectedSwapSpend = amountIn + protectionFee(amountIn);
-    log(`prepare ${formatEther(protectedSwapSpend)} USDT spend for protected swap, approve adapter`);
-    await ensureMintedBalanceAndApproval(
-      usdt,
-      user,
-      protectedSwapSpend,
-      adapter.target as string,
-      "USDT",
-      "protected swap",
-      log,
-    );
-
-    const tradeId = id(`api-scenario-${args.scenario}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`);
-    const reasonCode = args.scenario === "normal" ? "CLEAN" : "SANDWICH";
 
     log(`victim swap: protectedExactInputSingle ${formatEther(amountIn)} USDT (expectedOutput=${formatEther(expectedOutput)} AEGIS)`);
     const adapterAsUser = adapter.connect(user.signer as Signer) as AnyContract;
@@ -437,7 +529,7 @@ export async function runScenarioLive(args: {
         `EscrowRegistered missing or escrowId mismatch (log=${escrowIdFromLog}, tradeId=${tradeId})`,
       );
     }
-    const pending = await vault.escrows(tradeId);
+    const pending = await waitForEscrowState(vault, tradeId, 1n, "protected swap");
     log(`escrow Pending: state=${pending.state} outputAmount=${formatEther(pending.outputAmount)} AEGIS`);
 
     log(`post-audit: tx=${swapReceipt.hash} subject=${user.address}`);
@@ -462,11 +554,12 @@ export async function runScenarioLive(args: {
     const decisionReceipt = await decisionTx.wait();
     log(`decision tx mined: ${decisionReceipt.hash}`);
 
-    // RPC eventual-consistency: state and balances may lag the latest mined block
-    // on shared gateways. Small wait + 1 extra confirmation read before reporting.
-    await new Promise((r) => setTimeout(r, 2500));
-
-    const finalEscrow = await vault.escrows(tradeId);
+    const finalEscrow = await waitForEscrowState(
+      vault,
+      tradeId,
+      action === AUDIT_ACTION_RELEASE ? 2n : 3n,
+      "audit decision",
+    );
     const userAegisBal: bigint = await aegis.balanceOf(user.address);
     const userUsdtBal: bigint = await usdt.balanceOf(user.address);
     const insuranceUsdtBal: bigint = await usdt.balanceOf(deployment.contracts.insurancePool);
