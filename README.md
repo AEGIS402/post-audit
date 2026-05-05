@@ -16,6 +16,13 @@ Required runtime environment variables:
 - `LLM_MODEL`: model name, for example `gpt-oss-120b`.
 - `PRICE_OVERRIDES_JSON`: optional token-address-to-USD-price map.
 
+Optional LLM response cache variables:
+
+- `LLM_RESPONSE_CACHE`: enables the API/CLI response cache by default. Set to `0` to disable it.
+- `LLM_RESPONSE_CACHE_DIR`: cache directory, defaulting to `cache/llm-responses`.
+- `LLM_RESPONSE_CACHE_FORCE_REFRESH`: set to `1` to bypass cache reads and overwrite entries.
+- `LLM_RESPONSE_CACHE_LOG`: logs cache hit/miss/store events by default. Set to `0` to quiet it.
+
 ## Commands
 
 ```bash
@@ -50,6 +57,9 @@ curl -s http://127.0.0.1:13000/audit/subject \
     "subject_address": "0x..."
   }'
 ```
+
+To bypass a cached LLM response for one API call, add `"force_refresh": true`
+to either request body.
 
 Audit using `tx.from` as the subject address:
 

@@ -1,4 +1,12 @@
 import { parseAndValidateAuditOutput, parseModelJson } from "./schemas.js";
+import {
+  createLlmResponseCacheKey,
+  logLlmResponseCache,
+  readLlmResponseCache,
+  resolveLlmResponseCacheConfig,
+  writeLlmResponseCache,
+  type LlmResponseCacheOptions,
+} from "./llm-cache.js";
 import type { AuditOutput, AuditPayload } from "./types.js";
 import { requireEnv } from "./utils.js";
 
@@ -68,7 +76,7 @@ Field requirements:
 - transaction audit has no Solidity line numbers, so evidence entries must use line_start: null and line_end: null.
 - every evidence.description must mention one or more concrete evidence ids present in the payload, such as flow#0, tx.raw.input, log#0, receipt.raw.logs[0], or approval#0.`;
 
-export interface LlmOptions {
+export interface LlmOptions extends LlmResponseCacheOptions {
   baseUrl?: string;
   model?: string;
   timeoutMs?: number;
@@ -83,38 +91,56 @@ interface ChatCompletionResponse {
   }>;
 }
 
+interface ChatCompletionRequest {
+  model: string;
+  messages: Array<{
+    role: "system" | "user";
+    content: string;
+  }>;
+  temperature: number;
+  max_tokens: number;
+  response_format: {
+    type: "json_object";
+  };
+}
+
 export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {}): Promise<AuditOutput> {
   const baseUrl = options.baseUrl ?? requireEnv("LLM_BASE_URL");
   const model = options.model ?? requireEnv("LLM_MODEL");
   const timeoutMs = options.timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS ?? 120_000);
   const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 8_192);
+  const normalizedBaseUrl = baseUrl.replace(/\/$/u, "");
+  const requestBody = buildChatCompletionRequest(payload, model, maxTokens);
+  const cache = resolveLlmResponseCacheConfig(options);
+  const cacheKey = cache.enabled
+    ? createLlmResponseCacheKey({
+        base_url: normalizedBaseUrl,
+        request_body: requestBody,
+      })
+    : undefined;
+
+  if (cacheKey !== undefined && !cache.forceRefresh) {
+    const cached = await readLlmResponseCache(cache, cacheKey);
+    if (cached !== undefined) {
+      logLlmResponseCache(cache, "hit", cacheKey);
+      return parseAndValidateAuditOutput(cached, payload, model);
+    }
+
+    logLlmResponseCache(cache, "miss", cacheKey);
+  } else if (cacheKey !== undefined) {
+    logLlmResponseCache(cache, "refresh", cacheKey);
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${baseUrl.replace(/\/$/u, "")}/chat/completions`, {
+    const response = await fetch(`${normalizedBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: JSON.stringify(payload),
-          },
-        ],
-        temperature: 0,
-        max_tokens: maxTokens,
-        response_format: {
-          type: "json_object",
-        },
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -129,8 +155,37 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
       throw new Error("LLM response did not include message.content");
     }
 
-    return parseAndValidateAuditOutput(parseModelJson(content), payload, model);
+    const audit = parseAndValidateAuditOutput(parseModelJson(content), payload, model);
+    if (cacheKey !== undefined) {
+      const stored = await writeLlmResponseCache(cache, cacheKey, audit);
+      if (stored) {
+        logLlmResponseCache(cache, "stored", cacheKey);
+      }
+    }
+
+    return audit;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function buildChatCompletionRequest(payload: AuditPayload, model: string, maxTokens: number): ChatCompletionRequest {
+  return {
+    model,
+    messages: [
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
+      {
+        role: "user",
+        content: JSON.stringify(payload),
+      },
+    ],
+    temperature: 0,
+    max_tokens: maxTokens,
+    response_format: {
+      type: "json_object",
+    },
+  };
 }

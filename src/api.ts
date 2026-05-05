@@ -7,7 +7,11 @@ import { runLlmAudit } from "./llm.js";
 import type { AuditOutput, AuditPayload } from "./types.js";
 import { checksumAddress } from "./utils.js";
 
-export type AuditRunner = (payload: AuditPayload) => Promise<AuditOutput>;
+export interface AuditRunnerContext {
+  forceRefresh?: boolean;
+}
+
+export type AuditRunner = (payload: AuditPayload, context?: AuditRunnerContext) => Promise<AuditOutput>;
 
 export interface AuditApiOptions {
   provider: JsonRpcProviderLike;
@@ -18,10 +22,12 @@ export interface AuditApiOptions {
 const AuditSubjectRequestSchema = z.object({
   tx_hash: z.string().min(1),
   subject_address: z.string().min(1),
+  force_refresh: z.boolean().optional(),
 });
 
 const AuditFromTxRequestSchema = z.object({
   tx_hash: z.string().min(1),
+  force_refresh: z.boolean().optional(),
 });
 
 class HttpError extends Error {
@@ -59,13 +65,18 @@ async function routeAuditRequest(req: IncomingMessage, options: AuditApiOptions)
 
   if (pathname === "/audit/subject") {
     const request = AuditSubjectRequestSchema.parse(body);
-    return auditTransaction(options, request.tx_hash, parseAddress(request.subject_address, "subject_address"));
+    return auditTransaction(
+      options,
+      request.tx_hash,
+      parseAddress(request.subject_address, "subject_address"),
+      request.force_refresh,
+    );
   }
 
   if (pathname === "/audit/from-tx") {
     const request = AuditFromTxRequestSchema.parse(body);
     const subject = await resolveSubjectFromTxSender(options.provider, request.tx_hash);
-    return auditTransaction(options, request.tx_hash, subject);
+    return auditTransaction(options, request.tx_hash, subject, request.force_refresh);
   }
 
   throw new HttpError(404, "Endpoint not found");
@@ -79,14 +90,19 @@ function parseAddress(value: string, fieldName: string): string {
   }
 }
 
-async function auditTransaction(options: AuditApiOptions, txHash: string, subjectAddress: string): Promise<AuditOutput> {
+async function auditTransaction(
+  options: AuditApiOptions,
+  txHash: string,
+  subjectAddress: string,
+  forceRefresh = false,
+): Promise<AuditOutput> {
   const rawRpc = await collectRawRpc(options.provider, txHash, subjectAddress);
   const payload = buildAuditPayload(rawRpc, {
     priceOverrides: options.priceOverrides,
   });
   const auditRunner = options.auditRunner ?? runLlmAudit;
 
-  return auditRunner(payload);
+  return auditRunner(payload, { forceRefresh });
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
