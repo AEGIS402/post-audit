@@ -12,6 +12,7 @@ import {
   parseEther,
   toUtf8Bytes,
 } from "ethers";
+import { aegisEscrowInterface } from "./abis.js";
 import { buildAuditPayload } from "./payload.js";
 import { parsePriceOverrides } from "./prices.js";
 import { collectRawRpc, type JsonRpcProviderLike } from "./rpc.js";
@@ -103,6 +104,8 @@ export interface ScenarioResult {
   deployment: DeploymentJson["contracts"];
   actors: { auditor: string; user: string; attacker: string | null };
   tradeId: string;
+  policyHash: string;
+  evidenceHash: string;
   swapTxHash: string;
   decisionTxHash: string;
   audit: AuditOutput;
@@ -171,15 +174,25 @@ function quoteBufferedExpectedOutput(quotedOutput: bigint): bigint {
   return (quotedOutput * AUTO_EXPECTED_OUTPUT_BPS) / BPS_DENOMINATOR;
 }
 
-function decodeEscrowId(
-  receipt: { logs: ReadonlyArray<{ address: string; topics: ReadonlyArray<string> }> },
+function decodeEscrowRegisteredEvent(
+  receipt: { logs: ReadonlyArray<{ address: string; topics: ReadonlyArray<string>; data: string }> },
   vault: string,
-): string | null {
-  const topic = id("EscrowRegistered(bytes32,address,address,bytes32)");
+): { escrowId: string; policyHash: string } | null {
   const lower = vault.toLowerCase();
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() === lower && log.topics[0] === topic) {
-      return log.topics[1];
+    if (log.address.toLowerCase() !== lower) {
+      continue;
+    }
+    try {
+      const escrowParsed = aegisEscrowInterface.parseLog({ topics: log.topics, data: log.data });
+      if (escrowParsed !== null && escrowParsed.name === "EscrowRegistered") {
+        return {
+          escrowId: String(escrowParsed.args.escrowId),
+          policyHash: String(escrowParsed.args.policyHash),
+        };
+      }
+    } catch {
+      // Not an Aegis escrow event; continue scanning receipt logs.
     }
   }
   return null;
@@ -525,10 +538,10 @@ export async function runScenarioLive(args: {
       await plainSwap(poolSwapTest, attacker, poolKey, !usdtIsZero, attackerBackRunAegis, aegisToUsdtLimit, log);
     }
 
-    const escrowIdFromLog = decodeEscrowId(swapReceipt, vault.target as string);
-    if (escrowIdFromLog === null || escrowIdFromLog.toLowerCase() !== tradeId.toLowerCase()) {
+    const escrowRegistered = decodeEscrowRegisteredEvent(swapReceipt, vault.target as string);
+    if (escrowRegistered === null || escrowRegistered.escrowId.toLowerCase() !== tradeId.toLowerCase()) {
       throw new Error(
-        `EscrowRegistered missing or escrowId mismatch (log=${escrowIdFromLog}, tradeId=${tradeId})`,
+        `EscrowRegistered missing or escrowId mismatch (log=${escrowRegistered?.escrowId ?? null}, tradeId=${tradeId})`,
       );
     }
     const pending = await waitForEscrowState(vault, tradeId, 1n, "protected swap");
@@ -595,6 +608,8 @@ export async function runScenarioLive(args: {
         attacker: attacker?.address ?? null,
       },
       tradeId,
+      policyHash: String(escrowRegistered.policyHash),
+      evidenceHash: String(evidenceHash),
       swapTxHash: swapReceipt.hash,
       decisionTxHash: decisionReceipt.hash,
       audit,
