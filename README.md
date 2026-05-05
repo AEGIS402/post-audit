@@ -284,8 +284,7 @@ The orchestrator does not modify either repo's contracts. The mapping from
 | `overall_severity` | `AuditDecision.action` |
 | --- | --- |
 | `info`, `low` | `RELEASE` |
-| `medium` | `RELEASE` (with stderr warning; production should require human review) |
-| `high`, `critical` | `BLOCK_AND_CLAIM` |
+| `medium`, `high`, `critical` | `BLOCK_AND_CLAIM` |
 
 ## v1 Scope
 

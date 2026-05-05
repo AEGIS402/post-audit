@@ -186,7 +186,9 @@ function decodeEscrowId(
 }
 
 function severityToAction(severity: string): typeof AUDIT_ACTION_RELEASE | typeof AUDIT_ACTION_BLOCK_AND_CLAIM {
-  return severity === "high" || severity === "critical" ? AUDIT_ACTION_BLOCK_AND_CLAIM : AUDIT_ACTION_RELEASE;
+  return severity === "medium" || severity === "high" || severity === "critical"
+    ? AUDIT_ACTION_BLOCK_AND_CLAIM
+    : AUDIT_ACTION_RELEASE;
 }
 
 function errorText(error: unknown): string {
