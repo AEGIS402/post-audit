@@ -19,13 +19,15 @@ describe("post-audit API", function () {
     await tx.wait();
 
     let capturedPayload: AuditPayload | undefined;
+    let capturedForceRefresh: boolean | undefined;
     const server = createAuditApiServer({
       provider: ethers.provider,
       priceOverrides: {
         [await usdc.getAddress()]: "1",
       },
-      auditRunner: async (payload) => {
+      auditRunner: async (payload, context) => {
         capturedPayload = payload;
+        capturedForceRefresh = context?.forceRefresh;
         return makeAuditOutput(payload);
       },
     });
@@ -40,6 +42,7 @@ describe("post-audit API", function () {
         body: JSON.stringify({
           tx_hash: tx.hash,
           subject_address: subject.address,
+          force_refresh: true,
         }),
       });
       const json = (await response.json()) as AuditOutput;
@@ -50,6 +53,7 @@ describe("post-audit API", function () {
       expect(json.overall_severity).to.equal("info");
       expect(json.vulnerabilities).to.deep.equal([]);
       expect(capturedPayload?.subject_address).to.equal(subject.address);
+      expect(capturedForceRefresh).to.equal(true);
       expect(capturedPayload?.asset_flows[0]).to.include({
         asset: "USDC",
         direction: "out",
