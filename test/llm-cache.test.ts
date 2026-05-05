@@ -8,6 +8,7 @@ import type { AuditOutput, AuditPayload } from "../src/types.js";
 
 describe("LLM response cache", function () {
   const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
   const envKeys = [
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
@@ -16,6 +17,9 @@ describe("LLM response cache", function () {
     "LLM_MODEL",
     "LLM_MAX_TOKENS_FIELD",
     "LLM_REASONING_EFFORT",
+    "LLM_PROMPT_CACHE_KEY",
+    "LLM_PROMPT_CACHE_RETENTION",
+    "LLM_USAGE_LOG",
   ] as const;
   let cacheDir: string;
   let originalEnv: Record<(typeof envKeys)[number], string | undefined>;
@@ -28,6 +32,7 @@ describe("LLM response cache", function () {
 
   afterEach(async function () {
     globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
     restoreEnv(originalEnv);
     await rm(cacheDir, { recursive: true, force: true });
   });
@@ -202,6 +207,8 @@ describe("LLM response cache", function () {
     process.env.LLM_BASE_URL = "http://local-llm.test/v1";
     process.env.LLM_MODEL = "local-test-model";
     process.env.LLM_REASONING_EFFORT = "low";
+    process.env.LLM_PROMPT_CACHE_KEY = "post-audit-test";
+    process.env.LLM_PROMPT_CACHE_RETENTION = "24h";
 
     globalThis.fetch = (async (input, init) => {
       requests.push({
@@ -223,9 +230,46 @@ describe("LLM response cache", function () {
     expect((requests[0]?.init?.headers as Record<string, string>).Authorization).to.equal("Bearer test-openai-key");
     expect(requests[0]?.body.model).to.equal("openai-test-model");
     expect(requests[0]?.body.reasoning_effort).to.equal("low");
+    expect(requests[0]?.body.prompt_cache_key).to.equal("post-audit-test");
+    expect(requests[0]?.body.prompt_cache_retention).to.equal("24h");
     expect(requests[0]?.body.max_completion_tokens).to.equal(8192);
     expect(requests[0]?.body).to.not.have.property("temperature");
     expect(requests[0]?.body).to.not.have.property("max_tokens");
+  });
+
+  it("logs OpenAI cached prompt tokens when usage details are returned", async function () {
+    const logs: string[] = [];
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    process.env.OPENAI_MODEL = "openai-test-model";
+    process.env.LLM_PROMPT_CACHE_KEY = "post-audit-test";
+    console.error = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    globalThis.fetch = (async () =>
+      llmResponse(makeRawAuditOutput(5, "Network response."), {
+        prompt_tokens: 1600,
+        completion_tokens: 120,
+        total_tokens: 1720,
+        prompt_tokens_details: {
+          cached_tokens: 1024,
+        },
+      })) as typeof fetch;
+
+    await runLlmAudit(makePayload(), {
+      responseCache: false,
+      responseCacheDir: cacheDir,
+      cacheLog: false,
+    });
+
+    expect(logs).to.have.lengthOf(1);
+    expect(logs[0]).to.contain("[llm-usage]");
+    expect(logs[0]).to.contain("prompt_tokens=1600");
+    expect(logs[0]).to.contain("cached_tokens=1024");
+    expect(logs[0]).to.contain("completion_tokens=120");
+    expect(logs[0]).to.contain("total_tokens=1720");
+    expect(logs[0]).to.contain("prompt_cache_key=post-audit-test");
+    expect(logs[0]).to.contain("prompt_cache_retention=24h");
   });
 
   function cacheOptions() {
@@ -338,7 +382,17 @@ function makeRawAuditOutput(score: number, summary: string): AuditOutput {
   };
 }
 
-function llmResponse(output: AuditOutput): Response {
+function llmResponse(
+  output: AuditOutput,
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    prompt_tokens_details: {
+      cached_tokens: number;
+    };
+  },
+): Response {
   return new Response(
     JSON.stringify({
       choices: [
@@ -348,6 +402,7 @@ function llmResponse(output: AuditOutput): Response {
           },
         },
       ],
+      usage,
     }),
     {
       status: 200,

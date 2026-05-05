@@ -90,14 +90,18 @@ Field requirements:
 - every evidence.description must mention one or more concrete evidence ids present in the payload, such as flow#0, tx.raw.input, log#0, receipt.raw.logs[0], or approval#0.`;
 
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_OPENAI_PROMPT_CACHE_KEY = "post-audit-v1";
 type ChatCompletionTokenLimitField = "max_tokens" | "max_completion_tokens";
 type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+type PromptCacheRetention = "in_memory" | "24h";
 
 export interface LlmOptions extends LlmResponseCacheOptions {
   baseUrl?: string;
   model?: string;
   apiKey?: string;
   reasoningEffort?: ReasoningEffort;
+  promptCacheKey?: string;
+  promptCacheRetention?: PromptCacheRetention;
   timeoutMs?: number;
   maxTokens?: number;
 }
@@ -108,6 +112,14 @@ interface ChatCompletionResponse {
       content?: string | null;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    prompt_tokens_details?: {
+      cached_tokens?: number;
+    };
+  };
 }
 
 interface ChatCompletionRequest {
@@ -120,9 +132,16 @@ interface ChatCompletionRequest {
   max_tokens?: number;
   max_completion_tokens?: number;
   reasoning_effort?: ReasoningEffort;
+  prompt_cache_key?: string;
+  prompt_cache_retention?: PromptCacheRetention;
   response_format: {
     type: "json_object";
   };
+}
+
+interface PromptCacheRequestOptions {
+  key?: string;
+  retention?: PromptCacheRetention;
 }
 
 export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {}): Promise<AuditOutput> {
@@ -130,6 +149,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
   const baseUrl = resolveBaseUrl(options, envApiKey);
   const normalizedBaseUrl = baseUrl.replace(/\/$/u, "");
   const apiKey = resolveApiKey(options, envApiKey, normalizedBaseUrl);
+  const isOpenAiApi = apiKey !== undefined && isOpenAiBaseUrl(normalizedBaseUrl);
   const model = resolveModel(options, apiKey);
   const timeoutMs = options.timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS ?? 120_000);
   const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 8_192);
@@ -139,6 +159,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
     maxTokens,
     resolveTokenLimitField(apiKey, normalizedBaseUrl),
     resolveReasoningEffort(options),
+    resolvePromptCacheOptions(options, isOpenAiApi),
   );
   const cache = resolveLlmResponseCacheConfig(options);
   const cacheKey = cache.enabled
@@ -180,6 +201,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
     }
 
     const json = (await response.json()) as ChatCompletionResponse;
+    logLlmUsage(json, requestBody);
     const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.trim() === "") {
       throw new Error("LLM response did not include message.content");
@@ -205,6 +227,7 @@ function buildChatCompletionRequest(
   maxTokens: number,
   tokenLimitField: ChatCompletionTokenLimitField,
   reasoningEffort: ReasoningEffort | undefined,
+  promptCache: PromptCacheRequestOptions,
 ): ChatCompletionRequest {
   const request: ChatCompletionRequest = {
     model,
@@ -229,6 +252,12 @@ function buildChatCompletionRequest(
   request[tokenLimitField] = maxTokens;
   if (reasoningEffort !== undefined) {
     request.reasoning_effort = reasoningEffort;
+  }
+  if (promptCache.key !== undefined) {
+    request.prompt_cache_key = promptCache.key;
+  }
+  if (promptCache.retention !== undefined) {
+    request.prompt_cache_retention = promptCache.retention;
   }
   return request;
 }
@@ -297,6 +326,38 @@ function resolveModel(options: LlmOptions, apiKey: string | undefined): string {
   return model;
 }
 
+function resolvePromptCacheOptions(options: LlmOptions, isOpenAiApi: boolean): PromptCacheRequestOptions {
+  const promptCacheKey =
+    options.promptCacheKey === undefined
+      ? isOpenAiApi ? readOptionalEnv("LLM_PROMPT_CACHE_KEY") ?? DEFAULT_OPENAI_PROMPT_CACHE_KEY : undefined
+      : normalizePromptCacheKey(options.promptCacheKey);
+
+  if (promptCacheKey === undefined) {
+    return {};
+  }
+
+  const retention = options.promptCacheRetention
+    ?? (isOpenAiApi ? resolvePromptCacheRetention(readOptionalEnv("LLM_PROMPT_CACHE_RETENTION") ?? "24h") : undefined);
+
+  return {
+    key: promptCacheKey,
+    retention,
+  };
+}
+
+function normalizePromptCacheKey(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function resolvePromptCacheRetention(value: string): PromptCacheRetention {
+  if (value === "in_memory" || value === "24h") {
+    return value;
+  }
+
+  throw new Error("LLM_PROMPT_CACHE_RETENTION must be in_memory or 24h");
+}
+
 function resolveReasoningEffort(options: LlmOptions): ReasoningEffort | undefined {
   if (options.reasoningEffort !== undefined) {
     return options.reasoningEffort;
@@ -340,6 +401,48 @@ function isOpenAiBaseUrl(baseUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+function logLlmUsage(response: ChatCompletionResponse, request: ChatCompletionRequest): void {
+  if (!readEnvFlag("LLM_USAGE_LOG", true)) {
+    return;
+  }
+
+  const usage = response.usage;
+  if (usage === undefined) {
+    return;
+  }
+
+  console.error(
+    "[llm-usage] " +
+      `prompt_tokens=${formatUsageNumber(usage.prompt_tokens)} ` +
+      `cached_tokens=${formatUsageNumber(usage.prompt_tokens_details?.cached_tokens)} ` +
+      `completion_tokens=${formatUsageNumber(usage.completion_tokens)} ` +
+      `total_tokens=${formatUsageNumber(usage.total_tokens)} ` +
+      `prompt_cache_key=${request.prompt_cache_key ?? "none"} ` +
+      `prompt_cache_retention=${request.prompt_cache_retention ?? "none"}`,
+  );
+}
+
+function formatUsageNumber(value: number | undefined): string {
+  return value === undefined ? "unknown" : String(value);
+}
+
+function readEnvFlag(name: string, defaultValue: boolean): boolean {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return defaultValue;
+  }
+
+  const value = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(value)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(value)) {
+    return false;
+  }
+
+  return defaultValue;
 }
 
 function readOptionalEnv(name: string): string | undefined {

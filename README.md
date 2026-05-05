@@ -27,6 +27,9 @@ Optional LLM response cache variables:
 - `OPENAI_BASE_URL`: optional OpenAI API base URL override, defaulting to `https://api.openai.com/v1`.
 - `LLM_MAX_TOKENS_FIELD`: request token-limit field override. Defaults to `max_completion_tokens` for the official OpenAI API and `max_tokens` for local-compatible endpoints.
 - `LLM_REASONING_EFFORT`: optional Chat Completions `reasoning_effort` value. Set to `low` for lower latency and lower reasoning-token usage.
+- `LLM_PROMPT_CACHE_KEY`: optional OpenAI prompt cache routing key, defaulting to `post-audit-v1` for the official OpenAI API.
+- `LLM_PROMPT_CACHE_RETENTION`: optional OpenAI prompt cache retention, defaulting to `24h` for the official OpenAI API.
+- `LLM_USAGE_LOG`: logs OpenAI token usage and `cached_tokens` by default. Set to `0` to quiet it.
 - `LLM_RESPONSE_CACHE`: enables the API/CLI response cache by default. Set to `0` to disable it.
 - `LLM_RESPONSE_CACHE_DIR`: cache directory, defaulting to `cache/llm-responses`.
 - `LLM_RESPONSE_CACHE_DB_PATH`: SQLite response cache path, defaulting to `cache/llm-responses/responses.sqlite`. The cache opens SQLite in WAL mode.
