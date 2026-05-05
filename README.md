@@ -12,12 +12,20 @@ cp .env.example .env
 Required runtime environment variables:
 
 - `MAINNET_RPC_URL`: Ethereum mainnet RPC URL for live transaction analysis.
+- `OPENAI_API_KEY`: OpenAI API key for the GPT API. When this is set and no explicit LLM base URL is passed in code, the audit runner uses `https://api.openai.com/v1`.
+- `OPENAI_MODEL`: OpenAI model name, for example `gpt-5.4-mini-2026-03-17`.
+- `PRICE_OVERRIDES_JSON`: optional token-address-to-USD-price map.
+
+Local or self-hosted OpenAI-compatible endpoints are still supported by leaving
+`OPENAI_API_KEY` unset and configuring:
+
 - `LLM_BASE_URL`: OpenAI-compatible base URL that already includes `/v1`.
 - `LLM_MODEL`: model name, for example `gpt-oss-120b`.
-- `PRICE_OVERRIDES_JSON`: optional token-address-to-USD-price map.
 
 Optional LLM response cache variables:
 
+- `OPENAI_BASE_URL`: optional OpenAI API base URL override, defaulting to `https://api.openai.com/v1`.
+- `LLM_MAX_TOKENS_FIELD`: request token-limit field override. Defaults to `max_completion_tokens` for the official OpenAI API and `max_tokens` for local-compatible endpoints.
 - `LLM_RESPONSE_CACHE`: enables the API/CLI response cache by default. Set to `0` to disable it.
 - `LLM_RESPONSE_CACHE_DIR`: cache directory, defaulting to `cache/llm-responses`.
 - `LLM_RESPONSE_CACHE_DB_PATH`: SQLite response cache path, defaulting to `cache/llm-responses/responses.sqlite`. The cache opens SQLite in WAL mode.
@@ -101,7 +109,7 @@ Severity bands:
 | `high` | `75-89` | Strong risk signal, high-value exposure, or dangerous approval. |
 | `critical` | `90-100` | Severe loss pattern, extreme value imbalance, or missing slippage protection on a harmful swap. |
 
-The LLM proposes the final score, but local normalization fixes `score_version`, sets `model` from `LLM_MODEL`, enforces `0-100` score ranges, and derives severity from the score bands above.
+The LLM proposes the final score, but local normalization fixes `score_version`, sets `model` from the configured OpenAI or local LLM model, enforces `0-100` score ranges, and derives severity from the score bands above.
 
 ## API E2E Examples
 
@@ -248,8 +256,8 @@ Required env (in `.env`):
 ```
 SEPOLIA_RPC_URL=<archive-capable Sepolia RPC>
 PRIVATE_KEY=0x<deployer key matching escrow-hook initialConfig.finalOwner>
-LLM_BASE_URL=<OpenAI-compatible URL ending in /v1>
-LLM_MODEL=<model name>
+OPENAI_API_KEY=<OpenAI API key>
+OPENAI_MODEL=<model name>
 ```
 
 Run against an in-process Sepolia fork (Hardhat 3 `edr-simulated` + `forking`,

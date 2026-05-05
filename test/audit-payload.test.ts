@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect } from "chai";
 import { MaxUint256, parseUnits } from "ethers";
 import { network } from "hardhat";
+import { aegisEscrowInterface } from "../src/abis.js";
 import { buildAuditPayload, collectPayloadReferenceIds } from "../src/payload.js";
 import { collectRawRpc } from "../src/rpc.js";
 import { parseAndValidateAuditOutput } from "../src/schemas.js";
@@ -109,6 +110,23 @@ describe("post-audit payload builder", function () {
     ]);
     expect(payload.rule_signals.some((signal) => signal.type === "extreme_value_imbalance")).to.equal(true);
     expect(payload.rule_signals.some((signal) => signal.type === "missing_slippage_protection")).to.equal(true);
+    expectEveryEvidenceRefIsResolvable(payload);
+  });
+
+  it("marks protected swap output that meets expected output as non-risk", function () {
+    const payload = buildAuditPayload(makeProtectedSwapEscrowRaw({
+      outputAmount: parseUnits("87.77666051822488908", 18),
+      expectedOutput: parseUnits("86.898893913042640189", 18),
+    }));
+
+    const signal = payload.rule_signals.find((item) => item.type === "protected_swap_output_met");
+
+    expect(signal?.severity_hint).to.equal("info");
+    expect(signal?.computed).to.include({
+      output_vs_expected_ratio: "1.0101010101",
+      output_shortfall_pct: "-1.01%",
+    });
+    expect(payload.rule_signals.some((item) => item.type === "protected_swap_output_shortfall")).to.equal(false);
     expectEveryEvidenceRefIsResolvable(payload);
   });
 
@@ -279,6 +297,90 @@ describe("post-audit payload builder", function () {
     expectEveryEvidenceRefIsResolvable(payload);
   });
 });
+
+function makeProtectedSwapEscrowRaw(options: {
+  outputAmount: bigint;
+  expectedOutput: bigint;
+}): RawRpcInput {
+  const subject = "0x0000000000000000000000000000000000000001";
+  const recipient = "0x0000000000000000000000000000000000000002";
+  const escrow = "0x0000000000000000000000000000000000000003";
+  const usdt = "0x0000000000000000000000000000000000000004";
+  const aegis = "0x0000000000000000000000000000000000000005";
+  const event = aegisEscrowInterface.encodeEventLog(
+    aegisEscrowInterface.getEvent("ProtectedSwapEscrowed"),
+    [
+      `0x${"11".repeat(32)}`,
+      subject,
+      recipient,
+      usdt,
+      parseUnits("100", 6),
+      aegis,
+      options.outputAmount,
+      options.expectedOutput,
+    ],
+  );
+
+  return {
+    chain_id: 11155111,
+    tx_hash: `0x${"22".repeat(32)}`,
+    subject_address: subject,
+    raw_rpc: {
+      eth_getTransactionByHash: {
+        hash: `0x${"22".repeat(32)}`,
+        from: subject,
+        to: escrow,
+        value: "0x0",
+        input: "0x",
+        blockNumber: "0x1",
+      },
+      eth_getTransactionReceipt: {
+        transactionHash: `0x${"22".repeat(32)}`,
+        status: "0x1",
+        blockNumber: "0x1",
+        gasUsed: "0x5208",
+        effectiveGasPrice: "0x3b9aca00",
+        logs: [
+          {
+            address: escrow,
+            topics: event.topics,
+            data: event.data,
+            logIndex: "0x0",
+          },
+        ],
+      },
+      eth_getBlockByNumber: {
+        number: "0x1",
+        timestamp: "0x68d79a00",
+      },
+      eth_call_token_metadata: [
+        {
+          address: usdt,
+          decoded: {
+            name: "Tether USD",
+            symbol: "USDT",
+            decimals: 6,
+          },
+        },
+        {
+          address: aegis,
+          decoded: {
+            name: "Aegis",
+            symbol: "AEGIS",
+            decimals: 18,
+          },
+        },
+      ],
+      eth_getCode_results: [
+        {
+          address: escrow,
+          block_tag: "0x1",
+          code: "0x01",
+        },
+      ],
+    },
+  };
+}
 
 function expectEveryEvidenceRefIsResolvable(payload: AuditPayload): void {
   const refs = collectPayloadReferenceIds(payload);

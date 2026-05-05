@@ -8,14 +8,26 @@ import type { AuditOutput, AuditPayload } from "../src/types.js";
 
 describe("LLM response cache", function () {
   const originalFetch = globalThis.fetch;
+  const envKeys = [
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "OPENAI_BASE_URL",
+    "LLM_BASE_URL",
+    "LLM_MODEL",
+    "LLM_MAX_TOKENS_FIELD",
+  ] as const;
   let cacheDir: string;
+  let originalEnv: Record<(typeof envKeys)[number], string | undefined>;
 
   beforeEach(async function () {
+    originalEnv = snapshotEnv(envKeys);
+    clearEnv(envKeys);
     cacheDir = await mkdtemp(join(tmpdir(), "post-audit-llm-cache-"));
   });
 
   afterEach(async function () {
     globalThis.fetch = originalFetch;
+    restoreEnv(originalEnv);
     await rm(cacheDir, { recursive: true, force: true });
   });
 
@@ -177,6 +189,41 @@ describe("LLM response cache", function () {
     expect(firstUserContent.slice(0, firstTxHashIndex)).to.equal(secondUserContent.slice(0, secondTxHashIndex));
   });
 
+  it("uses the OpenAI GPT API when OPENAI_API_KEY is configured", async function () {
+    const requests: Array<{
+      input: RequestInfo | URL;
+      init: RequestInit | undefined;
+      body: Record<string, unknown>;
+    }> = [];
+
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    process.env.OPENAI_MODEL = "openai-test-model";
+    process.env.LLM_BASE_URL = "http://local-llm.test/v1";
+    process.env.LLM_MODEL = "local-test-model";
+
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        input,
+        init,
+        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+      });
+      return llmResponse(makeRawAuditOutput(5, "Network response."));
+    }) as typeof fetch;
+
+    await runLlmAudit(makePayload(), {
+      responseCache: false,
+      responseCacheDir: cacheDir,
+      cacheLog: false,
+    });
+
+    expect(requests).to.have.lengthOf(1);
+    expect(String(requests[0]?.input)).to.equal("https://api.openai.com/v1/chat/completions");
+    expect((requests[0]?.init?.headers as Record<string, string>).Authorization).to.equal("Bearer test-openai-key");
+    expect(requests[0]?.body.model).to.equal("openai-test-model");
+    expect(requests[0]?.body.max_completion_tokens).to.equal(8192);
+    expect(requests[0]?.body).to.not.have.property("max_tokens");
+  });
+
   function cacheOptions() {
     return {
       baseUrl: "http://llm.test/v1",
@@ -225,6 +272,31 @@ describe("LLM response cache", function () {
     }
   }
 });
+
+function snapshotEnv<T extends readonly string[]>(keys: T): Record<T[number], string | undefined> {
+  const snapshot: Partial<Record<T[number], string | undefined>> = {};
+  for (const key of keys) {
+    snapshot[key as T[number]] = process.env[key];
+  }
+
+  return snapshot as Record<T[number], string | undefined>;
+}
+
+function clearEnv(keys: readonly string[]): void {
+  for (const key of keys) {
+    delete process.env[key];
+  }
+}
+
+function restoreEnv(env: Record<string, string | undefined>): void {
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));

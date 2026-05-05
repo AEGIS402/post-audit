@@ -27,6 +27,9 @@ Do not claim malicious intent unless the structured evidence directly supports i
 Do not recommend reversing an already-finalized blockchain transaction.
 Only report vulnerabilities for actual risk conditions. A simple ERC20 transfer should usually return an empty vulnerabilities array.
 If rule_signals contains extreme_value_imbalance, missing_slippage_protection, or protected_swap_output_shortfall, include vulnerabilities grounded in those signals.
+Treat simple_erc20_transfer, protected_swap_output_met, and protected_swap_output_within_tolerance rule signals as non-risk informational signals.
+For ProtectedSwapEscrowed evidence, output_amount greater than or equal to expected_output means the user expectation was met. Do not report output shortfall, sandwich, MEV, slippage, or value-imbalance risk from that comparison unless rule_signals contains protected_swap_output_shortfall.
+For ProtectedSwapEscrowed evidence, output_vs_expected_ratio >= 1 or output_shortfall_pct <= 0 is not a vulnerability.
 
 Analyze exactly one post_transaction_audit payload supplied in the user message as JSON.
 
@@ -86,9 +89,13 @@ Field requirements:
 - transaction audit has no Solidity line numbers, so evidence entries must use line_start: null and line_end: null.
 - every evidence.description must mention one or more concrete evidence ids present in the payload, such as flow#0, tx.raw.input, log#0, receipt.raw.logs[0], or approval#0.`;
 
+const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+type ChatCompletionTokenLimitField = "max_tokens" | "max_completion_tokens";
+
 export interface LlmOptions extends LlmResponseCacheOptions {
   baseUrl?: string;
   model?: string;
+  apiKey?: string;
   timeoutMs?: number;
   maxTokens?: number;
 }
@@ -108,19 +115,22 @@ interface ChatCompletionRequest {
     content: string;
   }>;
   temperature: number;
-  max_tokens: number;
+  max_tokens?: number;
+  max_completion_tokens?: number;
   response_format: {
     type: "json_object";
   };
 }
 
 export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {}): Promise<AuditOutput> {
-  const baseUrl = options.baseUrl ?? requireEnv("LLM_BASE_URL");
-  const model = options.model ?? requireEnv("LLM_MODEL");
+  const envApiKey = readOptionalEnv("OPENAI_API_KEY");
+  const baseUrl = resolveBaseUrl(options, envApiKey);
+  const normalizedBaseUrl = baseUrl.replace(/\/$/u, "");
+  const apiKey = resolveApiKey(options, envApiKey, normalizedBaseUrl);
+  const model = resolveModel(options, apiKey);
   const timeoutMs = options.timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS ?? 120_000);
   const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 8_192);
-  const normalizedBaseUrl = baseUrl.replace(/\/$/u, "");
-  const requestBody = buildChatCompletionRequest(payload, model, maxTokens);
+  const requestBody = buildChatCompletionRequest(payload, model, maxTokens, resolveTokenLimitField(apiKey, normalizedBaseUrl));
   const cache = resolveLlmResponseCacheConfig(options);
   const cacheKey = cache.enabled
     ? createLlmResponseCacheKey({
@@ -149,6 +159,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(apiKey === undefined ? {} : { Authorization: `Bearer ${apiKey}` }),
       },
       body: JSON.stringify(requestBody),
       signal: controller.signal,
@@ -179,8 +190,13 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
   }
 }
 
-function buildChatCompletionRequest(payload: AuditPayload, model: string, maxTokens: number): ChatCompletionRequest {
-  return {
+function buildChatCompletionRequest(
+  payload: AuditPayload,
+  model: string,
+  maxTokens: number,
+  tokenLimitField: ChatCompletionTokenLimitField,
+): ChatCompletionRequest {
+  const request: ChatCompletionRequest = {
     model,
     messages: [
       {
@@ -193,11 +209,13 @@ function buildChatCompletionRequest(payload: AuditPayload, model: string, maxTok
       },
     ],
     temperature: 0,
-    max_tokens: maxTokens,
     response_format: {
       type: "json_object",
     },
   };
+
+  request[tokenLimitField] = maxTokens;
+  return request;
 }
 
 function serializeAuditPayloadForPrompt(payload: AuditPayload): string {
@@ -220,4 +238,80 @@ function serializeAuditPayloadForPrompt(payload: AuditPayload): string {
   };
 
   return JSON.stringify(orderedPayload);
+}
+
+function resolveBaseUrl(options: LlmOptions, envApiKey: string | undefined): string {
+  if (options.baseUrl !== undefined) {
+    return options.baseUrl;
+  }
+
+  if (envApiKey !== undefined) {
+    return readOptionalEnv("OPENAI_BASE_URL") ?? DEFAULT_OPENAI_BASE_URL;
+  }
+
+  return requireEnv("LLM_BASE_URL");
+}
+
+function resolveApiKey(options: LlmOptions, envApiKey: string | undefined, normalizedBaseUrl: string): string | undefined {
+  if (options.apiKey !== undefined) {
+    const trimmed = options.apiKey.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }
+
+  if (envApiKey === undefined) {
+    return undefined;
+  }
+
+  if (options.baseUrl === undefined || isOpenAiBaseUrl(normalizedBaseUrl)) {
+    return envApiKey;
+  }
+
+  return undefined;
+}
+
+function resolveModel(options: LlmOptions, apiKey: string | undefined): string {
+  const model = options.model
+    ?? (apiKey === undefined
+      ? readOptionalEnv("LLM_MODEL") ?? readOptionalEnv("OPENAI_MODEL")
+      : readOptionalEnv("OPENAI_MODEL") ?? readOptionalEnv("LLM_MODEL"));
+
+  if (model === undefined) {
+    throw new Error("OPENAI_MODEL or LLM_MODEL is required");
+  }
+
+  return model;
+}
+
+function resolveTokenLimitField(
+  apiKey: string | undefined,
+  normalizedBaseUrl: string,
+): ChatCompletionTokenLimitField {
+  const configured = readOptionalEnv("LLM_MAX_TOKENS_FIELD");
+  if (configured !== undefined) {
+    if (configured === "max_tokens" || configured === "max_completion_tokens") {
+      return configured;
+    }
+
+    throw new Error("LLM_MAX_TOKENS_FIELD must be max_tokens or max_completion_tokens");
+  }
+
+  return apiKey !== undefined && isOpenAiBaseUrl(normalizedBaseUrl) ? "max_completion_tokens" : "max_tokens";
+}
+
+function isOpenAiBaseUrl(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname === "api.openai.com";
+  } catch {
+    return false;
+  }
+}
+
+function readOptionalEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
 }
