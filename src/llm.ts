@@ -160,6 +160,7 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
     resolveTokenLimitField(apiKey, normalizedBaseUrl),
     resolveReasoningEffort(options),
     resolvePromptCacheOptions(options, isOpenAiApi),
+    !isOpenAiApi,
   );
   const cache = resolveLlmResponseCacheConfig(options);
   const cacheKey = cache.enabled
@@ -228,6 +229,7 @@ function buildChatCompletionRequest(
   tokenLimitField: ChatCompletionTokenLimitField,
   reasoningEffort: ReasoningEffort | undefined,
   promptCache: PromptCacheRequestOptions,
+  includeDeterministicTemperature: boolean,
 ): ChatCompletionRequest {
   const request: ChatCompletionRequest = {
     model,
@@ -246,7 +248,7 @@ function buildChatCompletionRequest(
     },
   };
 
-  if (reasoningEffort === undefined) {
+  if (includeDeterministicTemperature && reasoningEffort === undefined) {
     request.temperature = 0;
   }
   request[tokenLimitField] = maxTokens;

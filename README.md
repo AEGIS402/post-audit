@@ -13,7 +13,7 @@ Required runtime environment variables:
 
 - `MAINNET_RPC_URL`: Ethereum mainnet RPC URL for live transaction analysis.
 - `OPENAI_API_KEY`: OpenAI API key for the GPT API. When this is set and no explicit LLM base URL is passed in code, the audit runner uses `https://api.openai.com/v1`.
-- `OPENAI_MODEL`: OpenAI model name, for example `gpt-5.4-mini-2026-03-17`.
+- `OPENAI_MODEL`: OpenAI model name, for example `gpt-5.5-2026-04-23`.
 - `PRICE_OVERRIDES_JSON`: optional token-address-to-USD-price map.
 
 Local or self-hosted OpenAI-compatible endpoints are still supported by leaving
@@ -26,7 +26,7 @@ Optional LLM response cache variables:
 
 - `OPENAI_BASE_URL`: optional OpenAI API base URL override, defaulting to `https://api.openai.com/v1`.
 - `LLM_MAX_TOKENS_FIELD`: request token-limit field override. Defaults to `max_completion_tokens` for the official OpenAI API and `max_tokens` for local-compatible endpoints.
-- `LLM_REASONING_EFFORT`: optional Chat Completions `reasoning_effort` value. Set to `low` for lower latency and lower reasoning-token usage.
+- `LLM_REASONING_EFFORT`: optional Chat Completions `reasoning_effort` value. Leave unset to use the model default.
 - `LLM_PROMPT_CACHE_KEY`: optional OpenAI prompt cache routing key, defaulting to `post-audit-v1` for the official OpenAI API.
 - `LLM_PROMPT_CACHE_RETENTION`: optional OpenAI prompt cache retention, defaulting to `24h` for the official OpenAI API.
 - `LLM_USAGE_LOG`: logs OpenAI token usage and `cached_tokens` by default. Set to `0` to quiet it.

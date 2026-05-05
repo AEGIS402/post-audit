@@ -237,6 +237,30 @@ describe("LLM response cache", function () {
     expect(requests[0]?.body).to.not.have.property("max_tokens");
   });
 
+  it("uses OpenAI model defaults when LLM_REASONING_EFFORT is unset", async function () {
+    const requests: Array<{ body: Record<string, unknown> }> = [];
+
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    process.env.OPENAI_MODEL = "openai-test-model";
+
+    globalThis.fetch = (async (_input, init) => {
+      requests.push({
+        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+      });
+      return llmResponse(makeRawAuditOutput(5, "Network response."));
+    }) as typeof fetch;
+
+    await runLlmAudit(makePayload(), {
+      responseCache: false,
+      responseCacheDir: cacheDir,
+      cacheLog: false,
+    });
+
+    expect(requests).to.have.lengthOf(1);
+    expect(requests[0]?.body).to.not.have.property("reasoning_effort");
+    expect(requests[0]?.body).to.not.have.property("temperature");
+  });
+
   it("logs OpenAI cached prompt tokens when usage details are returned", async function () {
     const logs: string[] = [];
     process.env.OPENAI_API_KEY = "test-openai-key";
