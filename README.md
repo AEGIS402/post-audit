@@ -20,16 +20,19 @@ Optional LLM response cache variables:
 
 - `LLM_RESPONSE_CACHE`: enables the API/CLI response cache by default. Set to `0` to disable it.
 - `LLM_RESPONSE_CACHE_DIR`: cache directory, defaulting to `cache/llm-responses`.
+- `LLM_RESPONSE_CACHE_DB_PATH`: SQLite response cache path, defaulting to `cache/llm-responses/responses.sqlite`. The cache opens SQLite in WAL mode.
 - `LLM_RESPONSE_CACHE_FORCE_REFRESH`: set to `1` to bypass cache reads and overwrite entries.
 - `LLM_RESPONSE_CACHE_TTL_SECONDS`: cache entry TTL, defaulting to `0` for no TTL-based expiration.
 - `LLM_RESPONSE_CACHE_MAX_ENTRIES`: maximum cache entries, defaulting to `4096`. Entries above the cap are pruned by oldest `accessed_at`.
-- `LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS`: API cache finality gate. Defaults to `64` confirmations on Ethereum mainnet/Sepolia and `0` elsewhere.
+- `LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS`: API finality gate before evidence collection, LLM calls, or cache reads. Defaults to `2` confirmations on Ethereum mainnet/Sepolia and `0` elsewhere.
+- `LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS`: maximum API wait for required confirmations, defaulting to `180000`.
+- `LLM_RESPONSE_CACHE_FINALITY_POLL_MS`: block/receipt polling interval while waiting for finality, defaulting to `2000`.
 - `LLM_RESPONSE_CACHE_LOG`: logs cache hit/miss/store events by default. Set to `0` to quiet it.
 
-The LLM prompt is also laid out for endpoint-side prefix caching: the long
-system prompt and a stable user prelude come before the transaction payload,
-and high-cardinality fields such as `tx_hash` and `raw_evidence` are serialized
-near the end of the payload.
+The LLM prompt is also laid out for endpoint-side prefix caching: fixed audit
+instructions live in the system message, while the user message contains only
+the serialized transaction payload. High-cardinality fields such as `tx_hash`
+and `raw_evidence` are serialized near the end of the payload.
 
 ## Commands
 

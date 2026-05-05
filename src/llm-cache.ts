@@ -1,16 +1,19 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 export const DEFAULT_LLM_RESPONSE_CACHE_DIR = "cache/llm-responses";
 export const DEFAULT_LLM_RESPONSE_CACHE_TTL_SECONDS = 0;
 export const DEFAULT_LLM_RESPONSE_CACHE_MAX_ENTRIES = 4_096;
 
 const LLM_RESPONSE_CACHE_VERSION = 1;
+const DEFAULT_LLM_RESPONSE_CACHE_DB_FILE = "responses.sqlite";
 
 export interface LlmResponseCacheOptions {
   responseCache?: boolean;
   responseCacheDir?: string;
+  responseCacheDbPath?: string;
   forceRefresh?: boolean;
   cacheLog?: boolean;
   responseCacheTtlSeconds?: number;
@@ -20,30 +23,27 @@ export interface LlmResponseCacheOptions {
 export interface LlmResponseCacheConfig {
   enabled: boolean;
   dir: string;
+  dbPath: string;
   forceRefresh: boolean;
   log: boolean;
   ttlSeconds: number;
   maxEntries: number;
 }
 
-interface LlmResponseCacheEntry {
+interface LlmResponseCacheRow {
   version: number;
   key: string;
   created_at: string;
   accessed_at: string;
-  output: unknown;
-}
-
-interface LlmResponseCachePruneCandidate {
-  key: string;
-  path: string;
-  accessedAtMs: number;
+  output_json: string;
 }
 
 export function resolveLlmResponseCacheConfig(options: LlmResponseCacheOptions = {}): LlmResponseCacheConfig {
+  const dir = options.responseCacheDir ?? process.env.LLM_RESPONSE_CACHE_DIR ?? DEFAULT_LLM_RESPONSE_CACHE_DIR;
   return {
     enabled: options.responseCache ?? readEnvFlag("LLM_RESPONSE_CACHE", true),
-    dir: options.responseCacheDir ?? process.env.LLM_RESPONSE_CACHE_DIR ?? DEFAULT_LLM_RESPONSE_CACHE_DIR,
+    dir,
+    dbPath: options.responseCacheDbPath ?? process.env.LLM_RESPONSE_CACHE_DB_PATH ?? join(dir, DEFAULT_LLM_RESPONSE_CACHE_DB_FILE),
     forceRefresh: options.forceRefresh ?? readEnvFlag("LLM_RESPONSE_CACHE_FORCE_REFRESH", false),
     log: options.cacheLog ?? readEnvFlag("LLM_RESPONSE_CACHE_LOG", true),
     ttlSeconds: readNonNegativeIntegerOption(
@@ -70,38 +70,30 @@ export function createLlmResponseCacheKey(material: unknown): string {
 
 export async function readLlmResponseCache(config: LlmResponseCacheConfig, key: string): Promise<unknown | undefined> {
   try {
-    const raw = await readFile(cachePath(config.dir, key), "utf8");
-    const entry = JSON.parse(raw) as Partial<LlmResponseCacheEntry>;
+    return withLlmResponseCacheDb(config, (db) => {
+      const row = db.prepare("SELECT version, key, created_at, accessed_at, output_json FROM llm_response_cache WHERE key = ?")
+        .get(key) as LlmResponseCacheRow | undefined;
 
-    if (
-      entry.version !== LLM_RESPONSE_CACHE_VERSION ||
-      entry.key !== key ||
-      typeof entry.created_at !== "string" ||
-      entry.output === undefined
-    ) {
-      logLlmResponseCache(config, "stale", key);
-      return undefined;
-    }
+      if (row === undefined) {
+        return undefined;
+      }
 
-    if (isExpired(entry.created_at, config.ttlSeconds)) {
-      logLlmResponseCache(config, "expired", key);
-      return undefined;
-    }
+      if (row.version !== LLM_RESPONSE_CACHE_VERSION || row.key !== key || row.output_json === "") {
+        logLlmResponseCache(config, "stale", key);
+        return undefined;
+      }
 
-    await touchLlmResponseCacheEntry(config, {
-      version: entry.version,
-      key: entry.key,
-      created_at: entry.created_at,
-      accessed_at: new Date().toISOString(),
-      output: entry.output,
+      if (isExpired(row.created_at, config.ttlSeconds)) {
+        logLlmResponseCache(config, "expired", key);
+        return undefined;
+      }
+
+      const output = JSON.parse(row.output_json) as unknown;
+      db.prepare("UPDATE llm_response_cache SET accessed_at = ? WHERE key = ?").run(new Date().toISOString(), key);
+      return output;
     });
-
-    return entry.output;
   } catch (error) {
-    if (!isNodeError(error) || error.code !== "ENOENT") {
-      logLlmResponseCache(config, "read-error", key, error);
-    }
-
+    logLlmResponseCache(config, "read-error", key, error);
     return undefined;
   }
 }
@@ -112,15 +104,19 @@ export async function writeLlmResponseCache(
   output: unknown,
 ): Promise<boolean> {
   try {
-    const now = new Date().toISOString();
-    await writeLlmResponseCacheEntry(config.dir, key, {
-      version: LLM_RESPONSE_CACHE_VERSION,
-      key,
-      created_at: now,
-      accessed_at: now,
-      output,
+    withLlmResponseCacheDb(config, (db) => {
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO llm_response_cache (key, version, created_at, accessed_at, output_json)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          version = excluded.version,
+          created_at = excluded.created_at,
+          accessed_at = excluded.accessed_at,
+          output_json = excluded.output_json
+      `).run(key, LLM_RESPONSE_CACHE_VERSION, now, now, JSON.stringify(output) ?? "null");
+      pruneLlmResponseCache(config, db);
     });
-    await pruneLlmResponseCache(config);
     return true;
   } catch (error) {
     logLlmResponseCache(config, "write-error", key, error);
@@ -129,7 +125,7 @@ export async function writeLlmResponseCache(
 }
 
 export function logLlmResponseCache(
-  config: LlmResponseCacheConfig,
+  config: Pick<LlmResponseCacheConfig, "log">,
   event: string,
   key: string,
   detail?: unknown,
@@ -142,96 +138,51 @@ export function logLlmResponseCache(
   console.error(`[llm-cache] ${event} ${key.slice(0, 12)}${detailText}`);
 }
 
-async function touchLlmResponseCacheEntry(
-  config: LlmResponseCacheConfig,
-  entry: LlmResponseCacheEntry,
-): Promise<void> {
+function withLlmResponseCacheDb<T>(config: LlmResponseCacheConfig, fn: (db: DatabaseSync) => T): T {
+  mkdirSync(dirname(config.dbPath), { recursive: true });
+  const db = new DatabaseSync(config.dbPath);
   try {
-    await writeLlmResponseCacheEntry(config.dir, entry.key, entry);
-  } catch (error) {
-    logLlmResponseCache(config, "touch-error", entry.key, error);
+    db.exec("PRAGMA journal_mode=WAL");
+    db.exec("PRAGMA busy_timeout=5000");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS llm_response_cache (
+        key TEXT PRIMARY KEY,
+        version INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        accessed_at TEXT NOT NULL,
+        output_json TEXT NOT NULL
+      )
+    `);
+    db.exec("CREATE INDEX IF NOT EXISTS idx_llm_response_cache_accessed_at ON llm_response_cache(accessed_at, created_at)");
+    return fn(db);
+  } finally {
+    db.close();
   }
 }
 
-async function writeLlmResponseCacheEntry(
-  dir: string,
-  key: string,
-  entry: LlmResponseCacheEntry,
-): Promise<void> {
-  await mkdir(dir, { recursive: true });
-  const targetPath = cachePath(dir, key);
-  const tmpPath = join(dir, `${key}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
-
-  await writeFile(tmpPath, `${JSON.stringify(entry, null, 2)}\n`, "utf8");
-  await rename(tmpPath, targetPath);
-}
-
-async function pruneLlmResponseCache(config: LlmResponseCacheConfig): Promise<void> {
+function pruneLlmResponseCache(config: LlmResponseCacheConfig, db: DatabaseSync): void {
   if (config.maxEntries <= 0) {
     return;
   }
 
-  let files: string[];
-  try {
-    files = await readdir(config.dir);
-  } catch (error) {
-    if (!isNodeError(error) || error.code !== "ENOENT") {
-      logLlmResponseCache(config, "prune-error", "unknown", error);
-    }
-    return;
-  }
-
-  const candidates = await Promise.all(
-    files
-      .filter((file) => /^[a-f0-9]{64}\.json$/u.test(file))
-      .map((file) => readPruneCandidate(config, file)),
-  );
-  const existing = candidates.filter((candidate): candidate is LlmResponseCachePruneCandidate => candidate !== undefined);
-  const excess = existing.length - config.maxEntries;
-
+  const countRow = db.prepare("SELECT COUNT(*) AS count FROM llm_response_cache").get() as { count: number };
+  const excess = countRow.count - config.maxEntries;
   if (excess <= 0) {
     return;
   }
 
-  existing.sort((a, b) => a.accessedAtMs - b.accessedAtMs);
-  for (const candidate of existing.slice(0, excess)) {
-    try {
-      await unlink(candidate.path);
-      logLlmResponseCache(config, "pruned", candidate.key);
-    } catch (error) {
-      if (!isNodeError(error) || error.code !== "ENOENT") {
-        logLlmResponseCache(config, "prune-error", candidate.key, error);
-      }
-    }
+  const rows = db.prepare(`
+    SELECT key
+    FROM llm_response_cache
+    ORDER BY accessed_at ASC, created_at ASC, key ASC
+    LIMIT ?
+  `).all(excess as SQLInputValue) as Array<{ key: string }>;
+
+  const deleteEntry = db.prepare("DELETE FROM llm_response_cache WHERE key = ?");
+  for (const row of rows) {
+    deleteEntry.run(row.key);
+    logLlmResponseCache(config, "pruned", row.key);
   }
-}
-
-async function readPruneCandidate(
-  config: LlmResponseCacheConfig,
-  file: string,
-): Promise<LlmResponseCachePruneCandidate | undefined> {
-  const path = join(config.dir, file);
-
-  try {
-    const raw = await readFile(path, "utf8");
-    const entry = JSON.parse(raw) as Partial<LlmResponseCacheEntry>;
-    const key = typeof entry.key === "string" ? entry.key : file.replace(/\.json$/u, "");
-    const accessedAt = typeof entry.accessed_at === "string" ? entry.accessed_at : entry.created_at;
-    const accessedAtMs = parseTimestamp(accessedAt);
-
-    return {
-      key,
-      path,
-      accessedAtMs,
-    };
-  } catch (error) {
-    logLlmResponseCache(config, "prune-read-error", file.replace(/\.json$/u, ""), error);
-    return undefined;
-  }
-}
-
-function cachePath(dir: string, key: string): string {
-  return join(dir, `${key}.json`);
 }
 
 function isExpired(createdAt: string, ttlSeconds: number): boolean {
@@ -314,8 +265,4 @@ function readNonNegativeIntegerOption(value: number | undefined, envName: string
 
 function normalizeNonNegativeInteger(value: number, defaultValue: number): number {
   return Number.isInteger(value) && value >= 0 ? value : defaultValue;
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
 }

@@ -8,6 +8,21 @@ import { createAuditApiServer, type AuditRunnerContext } from "../src/api.js";
 import type { AuditOutput, AuditPayload } from "../src/types.js";
 
 describe("post-audit API", function () {
+  let originalMinConfirmations: string | undefined;
+
+  beforeEach(function () {
+    originalMinConfirmations = process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+    process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = "0";
+  });
+
+  afterEach(function () {
+    if (originalMinConfirmations === undefined) {
+      delete process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+    } else {
+      process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = originalMinConfirmations;
+    }
+  });
+
   it("audits a transaction with an explicit subject address", async function () {
     const { ethers } = await network.create();
     const [subject, recipient] = await ethers.getSigners();
@@ -115,10 +130,13 @@ describe("post-audit API", function () {
     }
   });
 
-  it("bypasses the response cache before configured chain finality", async function () {
-    const originalMinConfirmations = process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+  it("waits for configured chain finality before running the audit", async function () {
     const originalCacheLog = process.env.LLM_RESPONSE_CACHE_LOG;
-    process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = "9999";
+    const originalPollMs = process.env.LLM_RESPONSE_CACHE_FINALITY_POLL_MS;
+    const originalTimeoutMs = process.env.LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS;
+    process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = "2";
+    process.env.LLM_RESPONSE_CACHE_FINALITY_POLL_MS = "10";
+    process.env.LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS = "5000";
     process.env.LLM_RESPONSE_CACHE_LOG = "0";
 
     try {
@@ -145,7 +163,7 @@ describe("post-audit API", function () {
       const baseUrl = await listen(server);
 
       try {
-        const response = await fetch(`${baseUrl}/audit/subject`, {
+        const responsePromise = fetch(`${baseUrl}/audit/subject`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -155,25 +173,34 @@ describe("post-audit API", function () {
             subject_address: subject.address,
           }),
         });
+        await sleep(50);
+        await ethers.provider.send("evm_mine", []);
+        const response = await responsePromise;
 
         expect(response.status).to.equal(200);
-        expect(capturedContext?.responseCache).to.equal(false);
-        expect(capturedContext?.cacheFinality?.cacheable).to.equal(false);
-        expect(capturedContext?.cacheFinality?.required_confirmations).to.equal(9999);
-        expect(capturedContext?.cacheFinality?.confirmations).to.be.lessThan(9999);
+        expect(capturedContext?.responseCache).to.equal(undefined);
+        expect(capturedContext?.finality?.ready).to.equal(true);
+        expect(capturedContext?.finality?.required_confirmations).to.equal(2);
+        expect(capturedContext?.finality?.confirmations).to.be.greaterThanOrEqual(2);
+        expect(capturedContext?.finality?.waited_ms).to.be.greaterThan(0);
       } finally {
         await close(server);
       }
     } finally {
-      if (originalMinConfirmations === undefined) {
-        delete process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
-      } else {
-        process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = originalMinConfirmations;
-      }
       if (originalCacheLog === undefined) {
         delete process.env.LLM_RESPONSE_CACHE_LOG;
       } else {
         process.env.LLM_RESPONSE_CACHE_LOG = originalCacheLog;
+      }
+      if (originalPollMs === undefined) {
+        delete process.env.LLM_RESPONSE_CACHE_FINALITY_POLL_MS;
+      } else {
+        process.env.LLM_RESPONSE_CACHE_FINALITY_POLL_MS = originalPollMs;
+      }
+      if (originalTimeoutMs === undefined) {
+        delete process.env.LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS;
+      } else {
+        process.env.LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS = originalTimeoutMs;
       }
     }
   });
@@ -206,6 +233,10 @@ describe("post-audit API", function () {
     }
   });
 });
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function listen(server: Server): Promise<string> {
   server.listen(0, "127.0.0.1");

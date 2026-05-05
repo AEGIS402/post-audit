@@ -1,6 +1,7 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { expect } from "chai";
 import { runLlmAudit } from "../src/llm.js";
 import type { AuditOutput, AuditPayload } from "../src/types.js";
@@ -31,6 +32,20 @@ describe("LLM response cache", function () {
     expect(calls).to.equal(1);
     expect(second).to.deep.equal(first);
     expect(second.overall_summary).to.equal("Network response 1.");
+  });
+
+  it("stores cached responses in a SQLite database using WAL mode", async function () {
+    globalThis.fetch = (async () => llmResponse(makeRawAuditOutput(5, "Network response."))) as typeof fetch;
+
+    await runLlmAudit(makePayload(), cacheOptions());
+
+    withCacheDb((db) => {
+      const journal = db.prepare("PRAGMA journal_mode").get() as { journal_mode: string };
+      const count = db.prepare("SELECT COUNT(*) AS count FROM llm_response_cache").get() as { count: number };
+
+      expect(journal.journal_mode).to.equal("wal");
+      expect(count.count).to.equal(1);
+    });
   });
 
   it("refreshes and overwrites the cached response when forced", async function () {
@@ -127,7 +142,7 @@ describe("LLM response cache", function () {
     expect(calls).to.equal(4);
   });
 
-  it("places a stable user prompt prefix before transaction-specific payload data", async function () {
+  it("keeps fixed instructions in the system prompt and only payload JSON in the user message", async function () {
     const requests: Array<{ messages: Array<{ role: string; content: string }> }> = [];
     globalThis.fetch = (async (_input, init) => {
       requests.push(JSON.parse(String(init?.body)));
@@ -145,10 +160,18 @@ describe("LLM response cache", function () {
 
     const firstUserContent = requests[0]?.messages[1]?.content ?? "";
     const secondUserContent = requests[1]?.messages[1]?.content ?? "";
+    const firstSystemContent = requests[0]?.messages[0]?.content ?? "";
+    const secondSystemContent = requests[1]?.messages[0]?.content ?? "";
     const firstTxHashIndex = firstUserContent.indexOf('"tx_hash":"0xabc"');
     const secondTxHashIndex = secondUserContent.indexOf('"tx_hash":"0xdef"');
 
-    expect(firstUserContent).to.contain("PAYLOAD_JSON:\n");
+    expect(firstSystemContent).to.equal(secondSystemContent);
+    expect(firstSystemContent).to.contain("Analyze exactly one post_transaction_audit payload");
+    expect(firstUserContent).to.not.contain("PAYLOAD_JSON");
+    expect(JSON.parse(firstUserContent)).to.include({
+      task: "post_transaction_audit",
+      tx_hash: "0xabc",
+    });
     expect(firstTxHashIndex).to.be.greaterThan(firstUserContent.indexOf('"known_limitations"'));
     expect(firstUserContent.indexOf('"raw_evidence"')).to.be.greaterThan(firstTxHashIndex);
     expect(firstUserContent.slice(0, firstTxHashIndex)).to.equal(secondUserContent.slice(0, secondTxHashIndex));
@@ -164,15 +187,42 @@ describe("LLM response cache", function () {
   }
 
   async function rewriteOnlyCacheEntry(mutator: (entry: Record<string, unknown>) => Record<string, unknown>) {
-    const files = (await readdir(cacheDir)).filter((file) => file.endsWith(".json"));
-    expect(files).to.have.length(1);
-    const path = join(cacheDir, files[0]);
-    const entry = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
-    await writeFile(path, `${JSON.stringify(mutator(entry), null, 2)}\n`, "utf8");
+    withCacheDb((db) => {
+      const row = db.prepare("SELECT key, version, created_at, accessed_at, output_json FROM llm_response_cache")
+        .get() as Record<string, unknown> | undefined;
+      expect(row).to.not.equal(undefined);
+      const entry = {
+        ...row,
+        output: JSON.parse(String(row?.output_json)),
+      };
+      const next = mutator(entry);
+      db.prepare(`
+        UPDATE llm_response_cache
+        SET created_at = ?, accessed_at = ?, output_json = ?
+        WHERE key = ?
+      `).run(
+        String(next.created_at),
+        String(next.accessed_at ?? row?.accessed_at),
+        JSON.stringify(next.output ?? JSON.parse(String(row?.output_json))),
+        String(row?.key),
+      );
+    });
   }
 
   async function countCacheEntries() {
-    return (await readdir(cacheDir)).filter((file) => file.endsWith(".json")).length;
+    return withCacheDb((db) => {
+      const row = db.prepare("SELECT COUNT(*) AS count FROM llm_response_cache").get() as { count: number };
+      return row.count;
+    });
+  }
+
+  function withCacheDb<T>(fn: (db: DatabaseSync) => T): T {
+    const db = new DatabaseSync(join(cacheDir, "responses.sqlite"));
+    try {
+      return fn(db);
+    } finally {
+      db.close();
+    }
   }
 });
 

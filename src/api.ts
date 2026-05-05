@@ -4,21 +4,22 @@ import { z } from "zod";
 import { buildAuditPayload } from "./payload.js";
 import { collectRawRpc, resolveSubjectFromTxSender, type JsonRpcProviderLike } from "./rpc.js";
 import { runLlmAudit } from "./llm.js";
-import { resolveLlmResponseCacheConfig, type LlmResponseCacheOptions } from "./llm-cache.js";
+import { type LlmResponseCacheOptions } from "./llm-cache.js";
 import { runScenarioLive } from "./scenarios.js";
 import type { AuditOutput, AuditPayload } from "./types.js";
 import { checksumAddress, hexToNumber } from "./utils.js";
 
-export interface AuditRunnerCacheFinality {
+export interface AuditRunnerFinality {
   required_confirmations: number;
   confirmations?: number;
   latest_block?: number;
   tx_block?: number;
-  cacheable: boolean;
+  ready: boolean;
+  waited_ms: number;
 }
 
 export interface AuditRunnerContext extends LlmResponseCacheOptions {
-  cacheFinality?: AuditRunnerCacheFinality;
+  finality?: AuditRunnerFinality;
 }
 
 export type AuditRunner = (payload: AuditPayload, context?: AuditRunnerContext) => Promise<AuditOutput>;
@@ -44,9 +45,11 @@ const AuditFromTxRequestSchema = z.object({
 });
 
 const DEFAULT_CACHE_MIN_CONFIRMATIONS_BY_CHAIN = new Map<number, number>([
-  [1, 64],
-  [11155111, 64],
+  [1, 2],
+  [11155111, 2],
 ]);
+const DEFAULT_FINALITY_WAIT_TIMEOUT_MS = 180_000;
+const DEFAULT_FINALITY_POLL_MS = 2_000;
 
 const ScenarioOptionsSchema = z
   .object({
@@ -186,70 +189,109 @@ async function auditTransaction(
   subjectAddress: string,
   forceRefresh = false,
 ): Promise<AuditOutput> {
+  const finality = await waitForTransactionFinality(options.provider, txHash);
   const rawRpc = await collectRawRpc(options.provider, txHash, subjectAddress);
   const payload = buildAuditPayload(rawRpc, {
     priceOverrides: options.priceOverrides,
   });
   const auditRunner = options.auditRunner ?? runLlmAudit;
-  const auditRunnerContext = await buildAuditRunnerContext(options.provider, payload, forceRefresh);
 
-  return auditRunner(payload, auditRunnerContext);
+  return auditRunner(payload, { forceRefresh, finality });
 }
 
-async function buildAuditRunnerContext(
+async function waitForTransactionFinality(
   provider: JsonRpcProviderLike,
-  payload: AuditPayload,
-  forceRefresh: boolean,
-): Promise<AuditRunnerContext> {
-  const context: AuditRunnerContext = { forceRefresh };
-  const cache = resolveLlmResponseCacheConfig(context);
-  if (!cache.enabled) {
-    return context;
-  }
-
-  const requiredConfirmations = resolveCacheMinConfirmations(payload.chain_id);
+  txHash: string,
+): Promise<AuditRunnerFinality | undefined> {
+  const started = Date.now();
+  const chainId = await readChainId(provider);
+  const requiredConfirmations = resolveCacheMinConfirmations(chainId ?? 0);
   if (requiredConfirmations <= 0) {
-    return context;
+    return undefined;
   }
 
-  const txBlock = payload.execution.block_number;
-  if (txBlock === undefined) {
-    context.responseCache = false;
-    context.cacheFinality = {
-      required_confirmations: requiredConfirmations,
-      cacheable: false,
-    };
-    logCacheFinalityBypass(cache.log, payload, context.cacheFinality, "missing tx block");
-    return context;
-  }
+  const timeoutMs = readNonNegativeIntegerEnv("LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS", DEFAULT_FINALITY_WAIT_TIMEOUT_MS);
+  const pollMs = Math.max(100, readNonNegativeIntegerEnv("LLM_RESPONSE_CACHE_FINALITY_POLL_MS", DEFAULT_FINALITY_POLL_MS));
+  const deadline = started + timeoutMs;
+  let loggedWait = false;
 
-  const latestBlock = await readLatestBlockNumber(provider);
-  if (latestBlock === undefined) {
-    context.responseCache = false;
-    context.cacheFinality = {
-      required_confirmations: requiredConfirmations,
-      tx_block: txBlock,
-      cacheable: false,
-    };
-    logCacheFinalityBypass(cache.log, payload, context.cacheFinality, "missing latest block");
-    return context;
-  }
+  while (true) {
+    const status = await readTransactionFinalityStatus(provider, txHash);
+    const confirmations =
+      status.txBlock === undefined || status.latestBlock === undefined
+        ? undefined
+        : Math.max(0, status.latestBlock - status.txBlock + 1);
 
-  const confirmations = Math.max(0, latestBlock - txBlock + 1);
-  context.cacheFinality = {
-    required_confirmations: requiredConfirmations,
-    confirmations,
-    latest_block: latestBlock,
-    tx_block: txBlock,
-    cacheable: confirmations >= requiredConfirmations,
+    if (confirmations !== undefined && confirmations >= requiredConfirmations) {
+      const finality = {
+        required_confirmations: requiredConfirmations,
+        confirmations,
+        latest_block: status.latestBlock,
+        tx_block: status.txBlock,
+        ready: true,
+        waited_ms: Date.now() - started,
+      };
+      logFinality("ready", txHash, finality);
+      return finality;
+    }
+
+    if (!loggedWait) {
+      loggedWait = true;
+      logFinality("waiting", txHash, {
+        required_confirmations: requiredConfirmations,
+        confirmations,
+        latest_block: status.latestBlock,
+        tx_block: status.txBlock,
+        ready: false,
+        waited_ms: Date.now() - started,
+      });
+    }
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new HttpError(
+        408,
+        `Transaction did not reach ${requiredConfirmations} confirmations before timeout`,
+      );
+    }
+
+    await sleep(Math.min(pollMs, remaining));
+  }
+}
+
+async function readTransactionFinalityStatus(
+  provider: JsonRpcProviderLike,
+  txHash: string,
+): Promise<{ txBlock?: number; latestBlock?: number }> {
+  const [receipt, latestBlock] = await Promise.all([
+    readTransactionReceipt(provider, txHash),
+    readLatestBlockNumber(provider),
+  ]);
+
+  return {
+    txBlock: hexToNumber(receipt?.blockNumber),
+    latestBlock,
   };
+}
 
-  if (!context.cacheFinality.cacheable) {
-    context.responseCache = false;
-    logCacheFinalityBypass(cache.log, payload, context.cacheFinality);
+async function readChainId(provider: JsonRpcProviderLike): Promise<number | undefined> {
+  try {
+    return hexToNumber(await provider.send("eth_chainId", []));
+  } catch {
+    return undefined;
   }
+}
 
-  return context;
+async function readTransactionReceipt(
+  provider: JsonRpcProviderLike,
+  txHash: string,
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    const receipt = await provider.send("eth_getTransactionReceipt", [txHash]);
+    return receipt !== null && typeof receipt === "object" ? receipt as Record<string, unknown> : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function readLatestBlockNumber(provider: JsonRpcProviderLike): Promise<number | undefined> {
@@ -269,26 +311,30 @@ function resolveCacheMinConfirmations(chainId: number): number {
   return DEFAULT_CACHE_MIN_CONFIRMATIONS_BY_CHAIN.get(chainId) ?? 0;
 }
 
+function readNonNegativeIntegerEnv(name: string, defaultValue: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return defaultValue;
+  }
+
+  return normalizeNonNegativeInteger(Number(raw), defaultValue);
+}
+
 function normalizeNonNegativeInteger(value: number, defaultValue: number): number {
   return Number.isInteger(value) && value >= 0 ? value : defaultValue;
 }
 
-function logCacheFinalityBypass(
-  enabled: boolean,
-  payload: AuditPayload,
-  finality: AuditRunnerCacheFinality,
-  reason = "insufficient confirmations",
-): void {
-  if (!enabled) {
-    return;
-  }
-
+function logFinality(event: "waiting" | "ready", txHash: string, finality: AuditRunnerFinality): void {
   const confirmations = finality.confirmations === undefined ? "unknown" : String(finality.confirmations);
   const latestBlock = finality.latest_block === undefined ? "unknown" : String(finality.latest_block);
   const txBlock = finality.tx_block === undefined ? "unknown" : String(finality.tx_block);
   console.error(
-    `[llm-cache] bypass-finality tx=${payload.tx_hash.slice(0, 12)} reason=${reason} confirmations=${confirmations}/${finality.required_confirmations} tx_block=${txBlock} latest_block=${latestBlock}`,
+    `[finality] ${event} tx=${txHash.slice(0, 12)} confirmations=${confirmations}/${finality.required_confirmations} tx_block=${txBlock} latest_block=${latestBlock} waited_ms=${finality.waited_ms}`,
   );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function readJsonBodyOrEmpty(req: IncomingMessage): Promise<unknown> {
