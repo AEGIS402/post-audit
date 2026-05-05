@@ -6,14 +6,17 @@ export interface JsonRpcProviderLike {
   send(method: string, params?: unknown[]): Promise<unknown>;
 }
 
+const RPC_READ_RETRY_TIMEOUT_MS = 30_000;
+const RPC_READ_RETRY_POLL_MS = 1_000;
+
 export async function collectRawRpc(
   provider: JsonRpcProviderLike,
   txHash: string,
   subjectAddress?: string,
 ): Promise<RawRpcInput> {
   const chainIdHex = await provider.send("eth_chainId", []);
-  const tx = await provider.send("eth_getTransactionByHash", [txHash]);
-  const receipt = await provider.send("eth_getTransactionReceipt", [txHash]);
+  const tx = await readRpcObjectWithRetry(provider, "eth_getTransactionByHash", [txHash]);
+  const receipt = await readRpcObjectWithRetry(provider, "eth_getTransactionReceipt", [txHash]);
 
   if (tx === null || typeof tx !== "object") {
     throw new Error(`Transaction not found: ${txHash}`);
@@ -48,6 +51,30 @@ export async function collectRawRpc(
       eth_getCode_results: codeResults,
     },
   };
+}
+
+async function readRpcObjectWithRetry(
+  provider: JsonRpcProviderLike,
+  method: "eth_getTransactionByHash" | "eth_getTransactionReceipt",
+  params: unknown[],
+): Promise<unknown> {
+  const deadline = Date.now() + RPC_READ_RETRY_TIMEOUT_MS;
+  let result: unknown;
+
+  while (true) {
+    result = await provider.send(method, params);
+    if (result !== null && typeof result === "object") {
+      return result;
+    }
+    if (Date.now() >= deadline) {
+      return result;
+    }
+    await sleep(RPC_READ_RETRY_POLL_MS);
+  }
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function resolveSubjectFromTxSender(provider: JsonRpcProviderLike, txHash: string): Promise<string> {

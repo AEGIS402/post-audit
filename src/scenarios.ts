@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  type BaseWallet,
   Contract,
+  NonceManager,
+  type Signer,
   Wallet,
   encodeBytes32String,
   formatEther,
@@ -23,6 +24,9 @@ const SEPOLIA_CHAIN_ID = 11155111n;
 const MAX_UINT256 = (1n << 256n) - 1n;
 const MIN_PRICE_LIMIT = 4295128740n;
 const MAX_PRICE_LIMIT = 1461446703485210103287273052203988822378723970341n;
+const TOKEN_BALANCE_HEADROOM_MULTIPLIER = 100n;
+const PROTECTION_FEE_BPS = 50n;
+const BPS_DENOMINATOR = 10_000n;
 const AUDIT_ACTION_RELEASE = 0;
 const AUDIT_ACTION_BLOCK_AND_CLAIM = 1;
 
@@ -30,6 +34,7 @@ const ERC20_ABI = [
   "function mint(address to, uint256 amount)",
   "function approve(address spender, uint256 value) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
 ];
 
 const ADAPTER_ABI = [
@@ -69,6 +74,16 @@ interface PoolKey {
 }
 
 type AnyContract = Contract & Record<string, any>;
+
+interface ManagedAccount {
+  signer: NonceManager;
+  address: string;
+}
+
+type WaitableTx = {
+  hash?: string;
+  wait: () => Promise<any>;
+};
 
 export interface ScenarioOptions {
   amountIn?: string;
@@ -129,8 +144,16 @@ function buildPoolKey(deployment: DeploymentJson): { key: PoolKey; usdtIsZero: b
   };
 }
 
-async function fundWallet(funder: BaseWallet, recipient: string, amount: bigint): Promise<void> {
-  await (await funder.sendTransaction({ to: recipient, value: amount })).wait();
+function managedAccount(privateKey: string, provider: unknown): ManagedAccount {
+  const wallet = new Wallet(privateKey, provider as any);
+  return {
+    signer: new NonceManager(wallet),
+    address: wallet.address,
+  };
+}
+
+function protectionFee(amountIn: bigint): bigint {
+  return (amountIn * PROTECTION_FEE_BPS) / BPS_DENOMINATOR;
 }
 
 function decodeEscrowId(
@@ -151,32 +174,109 @@ function severityToAction(severity: string): typeof AUDIT_ACTION_RELEASE | typeo
   return severity === "high" || severity === "critical" ? AUDIT_ACTION_BLOCK_AND_CLAIM : AUDIT_ACTION_RELEASE;
 }
 
-async function ensureUserUsdtAndApproval(
-  usdt: AnyContract,
-  who: BaseWallet,
-  amount: bigint,
+function errorText(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function isNonceTooLowError(error: unknown): boolean {
+  return errorText(error).toLowerCase().includes("nonce too low");
+}
+
+async function sendManagedTransaction<T extends WaitableTx>(
+  account: ManagedAccount,
+  label: string,
+  log: (msg: string) => void,
+  send: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await send();
+  } catch (error) {
+    if (!isNonceTooLowError(error)) {
+      throw error;
+    }
+    account.signer.reset();
+    log(`${label}: nonce too low from RPC; reset NonceManager and retry once`);
+    return send();
+  }
+}
+
+async function ensureMintedBalanceAndApproval(
+  token: AnyContract,
+  account: ManagedAccount,
+  requiredSpend: bigint,
   spender: string,
+  tokenSymbol: string,
+  label: string,
+  log: (msg: string) => void,
 ): Promise<void> {
-  const usdtAsWho = usdt.connect(who) as AnyContract;
-  await (await usdtAsWho.mint(who.address, amount)).wait();
-  await (await usdtAsWho.approve(spender, MAX_UINT256)).wait();
+  const tokenAsSigner = token.connect(account.signer as Signer) as AnyContract;
+  const targetBalance = requiredSpend * TOKEN_BALANCE_HEADROOM_MULTIPLIER;
+  const balance: bigint = await token.balanceOf(account.address);
+
+  if (balance < requiredSpend) {
+    const mintAmount = targetBalance - balance;
+    log(
+      `${label}: ${tokenSymbol} balance ${formatEther(balance)} below ${formatEther(requiredSpend)} required; minting ${formatEther(mintAmount)} to reach ${formatEther(targetBalance)} buffer`,
+    );
+    const mintTx = await sendManagedTransaction(account, `${label} mint`, log, () =>
+      tokenAsSigner.mint(account.address, mintAmount),
+    );
+    await mintTx.wait();
+  } else {
+    log(`${label}: ${tokenSymbol} balance ${formatEther(balance)} covers ${formatEther(requiredSpend)} required; skip mint`);
+  }
+
+  await ensureTokenApproval(token, account, spender, requiredSpend, tokenSymbol, label, log);
+}
+
+async function ensureTokenApproval(
+  token: AnyContract,
+  account: ManagedAccount,
+  spender: string,
+  requiredSpend: bigint,
+  tokenSymbol: string,
+  label: string,
+  log: (msg: string) => void,
+): Promise<void> {
+  const allowance: bigint = await token.allowance(account.address, spender);
+  if (allowance >= requiredSpend) {
+    log(`${label}: ${tokenSymbol} allowance ${formatEther(allowance)} is already enough; skip approve`);
+    return;
+  }
+
+  const tokenAsSigner = token.connect(account.signer as Signer) as AnyContract;
+  log(`${label}: ${tokenSymbol} allowance ${formatEther(allowance)} below ${formatEther(requiredSpend)}; approving max`);
+  const approveTx = await sendManagedTransaction(account, `${label} approve`, log, () =>
+    tokenAsSigner.approve(spender, MAX_UINT256),
+  );
+  await approveTx.wait();
 }
 
 async function plainSwap(
   poolSwapTest: AnyContract,
-  trader: BaseWallet,
+  trader: ManagedAccount,
   key: PoolKey,
   zeroForOne: boolean,
   amountIn: bigint,
   sqrtPriceLimit: bigint,
+  log: (msg: string) => void,
 ): Promise<void> {
-  const swapper = poolSwapTest.connect(trader) as AnyContract;
-  const tx = await swapper.swap(
-    key,
-    { zeroForOne, amountSpecified: -amountIn, sqrtPriceLimitX96: sqrtPriceLimit },
-    { takeClaims: false, settleUsingBurn: false },
-    "0x",
-    { gasLimit: 4_000_000 },
+  const swapper = poolSwapTest.connect(trader.signer as Signer) as AnyContract;
+  const tx = await sendManagedTransaction(trader, "plain swap", log, () =>
+    swapper.swap(
+      key,
+      { zeroForOne, amountSpecified: -amountIn, sqrtPriceLimitX96: sqrtPriceLimit },
+      { takeClaims: false, settleUsingBurn: false },
+      "0x",
+      { gasLimit: 4_000_000 },
+    ),
   );
   await tx.wait();
 }
@@ -224,13 +324,13 @@ export async function runScenarioLive(args: {
       );
     }
 
-    const auditor: BaseWallet = new Wallet(args.ownerKey, ethersProvider);
-    const trader: BaseWallet = new Wallet(args.traderKey, ethersProvider);
+    const auditor = managedAccount(args.ownerKey, ethersProvider);
+    const trader = managedAccount(args.traderKey, ethersProvider);
     if (auditor.address.toLowerCase() === trader.address.toLowerCase()) {
       throw new Error("trader key must differ from PRIVATE_KEY (auditor)");
     }
-    const user: BaseWallet = trader;
-    const attacker: BaseWallet | null = args.scenario === "sandwich" ? trader : null;
+    const user = trader;
+    const attacker: ManagedAccount | null = args.scenario === "sandwich" ? trader : null;
 
     const usdt = new Contract(deployment.contracts.usdt, ERC20_ABI, ethersProvider) as AnyContract;
     const aegis = new Contract(deployment.contracts.aegis, ERC20_ABI, ethersProvider) as AnyContract;
@@ -266,43 +366,69 @@ export async function runScenarioLive(args: {
     let attackerBackRunAegis = 0n;
     if (args.scenario === "sandwich" && attacker) {
       const attackAmount = parseEther(args.options?.attackAmount ?? "500000");
-      log(`front-run: trader mints ${formatEther(attackAmount)} USDT, approves poolSwapTest, swaps USDT -> AEGIS`);
-      await ensureUserUsdtAndApproval(usdt, attacker, attackAmount, poolSwapTest.target as string);
-      const aegisAsAttacker = aegis.connect(attacker) as AnyContract;
-      await (await aegisAsAttacker.approve(poolSwapTest.target, MAX_UINT256)).wait();
+      log(`front-run: prepare trader USDT, approve poolSwapTest, swap USDT -> AEGIS`);
+      await ensureMintedBalanceAndApproval(
+        usdt,
+        attacker,
+        attackAmount,
+        poolSwapTest.target as string,
+        "USDT",
+        "front-run",
+        log,
+      );
       const aegisBefore: bigint = await aegis.balanceOf(attacker.address);
-      await plainSwap(poolSwapTest, attacker, poolKey, usdtIsZero, attackAmount, usdtToAegisLimit);
+      await plainSwap(poolSwapTest, attacker, poolKey, usdtIsZero, attackAmount, usdtToAegisLimit, log);
       const aegisAfter: bigint = await aegis.balanceOf(attacker.address);
       attackerBackRunAegis = aegisAfter - aegisBefore;
       log(`front-run filled: trader received ${formatEther(attackerBackRunAegis)} AEGIS`);
+      await ensureTokenApproval(
+        aegis,
+        attacker,
+        poolSwapTest.target as string,
+        attackerBackRunAegis,
+        "AEGIS",
+        "back-run",
+        log,
+      );
     }
 
-    log(`mint ${formatEther(amountIn)} USDT for trader (as user), approve adapter`);
-    await ensureUserUsdtAndApproval(usdt, user, amountIn * 100n, adapter.target as string);
+    const protectedSwapSpend = amountIn + protectionFee(amountIn);
+    log(`prepare ${formatEther(protectedSwapSpend)} USDT spend for protected swap, approve adapter`);
+    await ensureMintedBalanceAndApproval(
+      usdt,
+      user,
+      protectedSwapSpend,
+      adapter.target as string,
+      "USDT",
+      "protected swap",
+      log,
+    );
 
     const tradeId = id(`api-scenario-${args.scenario}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`);
     const reasonCode = args.scenario === "normal" ? "CLEAN" : "SANDWICH";
 
     log(`victim swap: protectedExactInputSingle ${formatEther(amountIn)} USDT (expectedOutput=${formatEther(expectedOutput)} AEGIS)`);
-    const adapterAsUser = adapter.connect(user) as AnyContract;
-    const swapTx = await adapterAsUser.protectedExactInputSingle(
-      {
-        key: poolKey,
-        zeroForOne: usdtIsZero,
-        amountIn,
-        expectedOutput,
-        sqrtPriceLimitX96: usdtToAegisLimit,
-        tradeId,
-        settlementRecipient: user.address,
-      },
-      { gasLimit: 4_000_000 },
+    const adapterAsUser = adapter.connect(user.signer as Signer) as AnyContract;
+    const swapTx = await sendManagedTransaction(user, "protected swap", log, () =>
+      adapterAsUser.protectedExactInputSingle(
+        {
+          key: poolKey,
+          zeroForOne: usdtIsZero,
+          amountIn,
+          expectedOutput,
+          sqrtPriceLimitX96: usdtToAegisLimit,
+          tradeId,
+          settlementRecipient: user.address,
+        },
+        { gasLimit: 4_000_000 },
+      ),
     );
     const swapReceipt = await swapTx.wait();
     log(`victim swap tx mined: ${swapReceipt.hash}`);
 
     if (args.scenario === "sandwich" && attacker && attackerBackRunAegis > 0n) {
       log(`back-run: attacker swaps ${formatEther(attackerBackRunAegis)} AEGIS -> USDT`);
-      await plainSwap(poolSwapTest, attacker, poolKey, !usdtIsZero, attackerBackRunAegis, aegisToUsdtLimit);
+      await plainSwap(poolSwapTest, attacker, poolKey, !usdtIsZero, attackerBackRunAegis, aegisToUsdtLimit, log);
     }
 
     const escrowIdFromLog = decodeEscrowId(swapReceipt, vault.target as string);
@@ -326,10 +452,12 @@ export async function runScenarioLive(args: {
     const evidenceHash = keccak256(toUtf8Bytes(JSON.stringify(audit)));
 
     log(`executeAuditDecision: action=${chosenAction} reason=${reasonCode}`);
-    const vaultAsAuditor = vault.connect(auditor) as AnyContract;
-    const decisionTx = await vaultAsAuditor.executeAuditDecision(
-      { escrowId: tradeId, action, reason, evidenceHash, actionData: "0x" },
-      { gasLimit: 1_000_000 },
+    const vaultAsAuditor = vault.connect(auditor.signer as Signer) as AnyContract;
+    const decisionTx = await sendManagedTransaction(auditor, "audit decision", log, () =>
+      vaultAsAuditor.executeAuditDecision(
+        { escrowId: tradeId, action, reason, evidenceHash, actionData: "0x" },
+        { gasLimit: 1_000_000 },
+      ),
     );
     const decisionReceipt = await decisionTx.wait();
     log(`decision tx mined: ${decisionReceipt.hash}`);
