@@ -91,11 +91,13 @@ Field requirements:
 
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 type ChatCompletionTokenLimitField = "max_tokens" | "max_completion_tokens";
+type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export interface LlmOptions extends LlmResponseCacheOptions {
   baseUrl?: string;
   model?: string;
   apiKey?: string;
+  reasoningEffort?: ReasoningEffort;
   timeoutMs?: number;
   maxTokens?: number;
 }
@@ -114,9 +116,10 @@ interface ChatCompletionRequest {
     role: "system" | "user";
     content: string;
   }>;
-  temperature: number;
+  temperature?: number;
   max_tokens?: number;
   max_completion_tokens?: number;
+  reasoning_effort?: ReasoningEffort;
   response_format: {
     type: "json_object";
   };
@@ -130,7 +133,13 @@ export async function runLlmAudit(payload: AuditPayload, options: LlmOptions = {
   const model = resolveModel(options, apiKey);
   const timeoutMs = options.timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS ?? 120_000);
   const maxTokens = options.maxTokens ?? Number(process.env.LLM_MAX_TOKENS ?? 8_192);
-  const requestBody = buildChatCompletionRequest(payload, model, maxTokens, resolveTokenLimitField(apiKey, normalizedBaseUrl));
+  const requestBody = buildChatCompletionRequest(
+    payload,
+    model,
+    maxTokens,
+    resolveTokenLimitField(apiKey, normalizedBaseUrl),
+    resolveReasoningEffort(options),
+  );
   const cache = resolveLlmResponseCacheConfig(options);
   const cacheKey = cache.enabled
     ? createLlmResponseCacheKey({
@@ -195,6 +204,7 @@ function buildChatCompletionRequest(
   model: string,
   maxTokens: number,
   tokenLimitField: ChatCompletionTokenLimitField,
+  reasoningEffort: ReasoningEffort | undefined,
 ): ChatCompletionRequest {
   const request: ChatCompletionRequest = {
     model,
@@ -208,13 +218,18 @@ function buildChatCompletionRequest(
         content: serializeAuditPayloadForPrompt(payload),
       },
     ],
-    temperature: 0,
     response_format: {
       type: "json_object",
     },
   };
 
+  if (reasoningEffort === undefined) {
+    request.temperature = 0;
+  }
   request[tokenLimitField] = maxTokens;
+  if (reasoningEffort !== undefined) {
+    request.reasoning_effort = reasoningEffort;
+  }
   return request;
 }
 
@@ -282,6 +297,23 @@ function resolveModel(options: LlmOptions, apiKey: string | undefined): string {
   return model;
 }
 
+function resolveReasoningEffort(options: LlmOptions): ReasoningEffort | undefined {
+  if (options.reasoningEffort !== undefined) {
+    return options.reasoningEffort;
+  }
+
+  const configured = readOptionalEnv("LLM_REASONING_EFFORT");
+  if (configured === undefined) {
+    return undefined;
+  }
+
+  if (isReasoningEffort(configured)) {
+    return configured;
+  }
+
+  throw new Error("LLM_REASONING_EFFORT must be none, minimal, low, medium, high, or xhigh");
+}
+
 function resolveTokenLimitField(
   apiKey: string | undefined,
   normalizedBaseUrl: string,
@@ -296,6 +328,10 @@ function resolveTokenLimitField(
   }
 
   return apiKey !== undefined && isOpenAiBaseUrl(normalizedBaseUrl) ? "max_completion_tokens" : "max_tokens";
+}
+
+function isReasoningEffort(value: string): value is ReasoningEffort {
+  return ["none", "minimal", "low", "medium", "high", "xhigh"].includes(value);
 }
 
 function isOpenAiBaseUrl(baseUrl: string): boolean {

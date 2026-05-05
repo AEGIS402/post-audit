@@ -15,6 +15,7 @@ describe("LLM response cache", function () {
     "LLM_BASE_URL",
     "LLM_MODEL",
     "LLM_MAX_TOKENS_FIELD",
+    "LLM_REASONING_EFFORT",
   ] as const;
   let cacheDir: string;
   let originalEnv: Record<(typeof envKeys)[number], string | undefined>;
@@ -200,6 +201,7 @@ describe("LLM response cache", function () {
     process.env.OPENAI_MODEL = "openai-test-model";
     process.env.LLM_BASE_URL = "http://local-llm.test/v1";
     process.env.LLM_MODEL = "local-test-model";
+    process.env.LLM_REASONING_EFFORT = "low";
 
     globalThis.fetch = (async (input, init) => {
       requests.push({
@@ -220,7 +222,9 @@ describe("LLM response cache", function () {
     expect(String(requests[0]?.input)).to.equal("https://api.openai.com/v1/chat/completions");
     expect((requests[0]?.init?.headers as Record<string, string>).Authorization).to.equal("Bearer test-openai-key");
     expect(requests[0]?.body.model).to.equal("openai-test-model");
+    expect(requests[0]?.body.reasoning_effort).to.equal("low");
     expect(requests[0]?.body.max_completion_tokens).to.equal(8192);
+    expect(requests[0]?.body).to.not.have.property("temperature");
     expect(requests[0]?.body).to.not.have.property("max_tokens");
   });
 
