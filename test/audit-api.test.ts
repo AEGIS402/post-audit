@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import { expect } from "chai";
 import { parseUnits } from "ethers";
 import { network } from "hardhat";
-import { createAuditApiServer } from "../src/api.js";
+import { createAuditApiServer, type AuditRunnerContext } from "../src/api.js";
 import type { AuditOutput, AuditPayload } from "../src/types.js";
 
 describe("post-audit API", function () {
@@ -112,6 +112,69 @@ describe("post-audit API", function () {
       });
     } finally {
       await close(server);
+    }
+  });
+
+  it("bypasses the response cache before configured chain finality", async function () {
+    const originalMinConfirmations = process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+    const originalCacheLog = process.env.LLM_RESPONSE_CACHE_LOG;
+    process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = "9999";
+    process.env.LLM_RESPONSE_CACHE_LOG = "0";
+
+    try {
+      const { ethers } = await network.create();
+      const [subject, recipient] = await ethers.getSigners();
+      const usdc = (await ethers.deployContract("MockERC20", ["USD Coin", "USDC", 6])) as any;
+      await usdc.waitForDeployment();
+      await (await usdc.mint(subject.address, parseUnits("1000", 6))).wait();
+
+      const tx = await usdc.connect(subject).transfer(recipient.address, parseUnits("42", 6));
+      await tx.wait();
+
+      let capturedContext: AuditRunnerContext | undefined;
+      const server = createAuditApiServer({
+        provider: ethers.provider,
+        priceOverrides: {
+          [await usdc.getAddress()]: "1",
+        },
+        auditRunner: async (payload, context) => {
+          capturedContext = context;
+          return makeAuditOutput(payload);
+        },
+      });
+      const baseUrl = await listen(server);
+
+      try {
+        const response = await fetch(`${baseUrl}/audit/subject`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tx_hash: tx.hash,
+            subject_address: subject.address,
+          }),
+        });
+
+        expect(response.status).to.equal(200);
+        expect(capturedContext?.responseCache).to.equal(false);
+        expect(capturedContext?.cacheFinality?.cacheable).to.equal(false);
+        expect(capturedContext?.cacheFinality?.required_confirmations).to.equal(9999);
+        expect(capturedContext?.cacheFinality?.confirmations).to.be.lessThan(9999);
+      } finally {
+        await close(server);
+      }
+    } finally {
+      if (originalMinConfirmations === undefined) {
+        delete process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+      } else {
+        process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS = originalMinConfirmations;
+      }
+      if (originalCacheLog === undefined) {
+        delete process.env.LLM_RESPONSE_CACHE_LOG;
+      } else {
+        process.env.LLM_RESPONSE_CACHE_LOG = originalCacheLog;
+      }
     }
   });
 

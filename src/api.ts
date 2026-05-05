@@ -4,12 +4,21 @@ import { z } from "zod";
 import { buildAuditPayload } from "./payload.js";
 import { collectRawRpc, resolveSubjectFromTxSender, type JsonRpcProviderLike } from "./rpc.js";
 import { runLlmAudit } from "./llm.js";
+import { resolveLlmResponseCacheConfig, type LlmResponseCacheOptions } from "./llm-cache.js";
 import { runScenarioLive } from "./scenarios.js";
 import type { AuditOutput, AuditPayload } from "./types.js";
-import { checksumAddress } from "./utils.js";
+import { checksumAddress, hexToNumber } from "./utils.js";
 
-export interface AuditRunnerContext {
-  forceRefresh?: boolean;
+export interface AuditRunnerCacheFinality {
+  required_confirmations: number;
+  confirmations?: number;
+  latest_block?: number;
+  tx_block?: number;
+  cacheable: boolean;
+}
+
+export interface AuditRunnerContext extends LlmResponseCacheOptions {
+  cacheFinality?: AuditRunnerCacheFinality;
 }
 
 export type AuditRunner = (payload: AuditPayload, context?: AuditRunnerContext) => Promise<AuditOutput>;
@@ -33,6 +42,11 @@ const AuditFromTxRequestSchema = z.object({
   tx_hash: z.string().min(1),
   force_refresh: z.boolean().optional(),
 });
+
+const DEFAULT_CACHE_MIN_CONFIRMATIONS_BY_CHAIN = new Map<number, number>([
+  [1, 64],
+  [11155111, 64],
+]);
 
 const ScenarioOptionsSchema = z
   .object({
@@ -177,8 +191,104 @@ async function auditTransaction(
     priceOverrides: options.priceOverrides,
   });
   const auditRunner = options.auditRunner ?? runLlmAudit;
+  const auditRunnerContext = await buildAuditRunnerContext(options.provider, payload, forceRefresh);
 
-  return auditRunner(payload, { forceRefresh });
+  return auditRunner(payload, auditRunnerContext);
+}
+
+async function buildAuditRunnerContext(
+  provider: JsonRpcProviderLike,
+  payload: AuditPayload,
+  forceRefresh: boolean,
+): Promise<AuditRunnerContext> {
+  const context: AuditRunnerContext = { forceRefresh };
+  const cache = resolveLlmResponseCacheConfig(context);
+  if (!cache.enabled) {
+    return context;
+  }
+
+  const requiredConfirmations = resolveCacheMinConfirmations(payload.chain_id);
+  if (requiredConfirmations <= 0) {
+    return context;
+  }
+
+  const txBlock = payload.execution.block_number;
+  if (txBlock === undefined) {
+    context.responseCache = false;
+    context.cacheFinality = {
+      required_confirmations: requiredConfirmations,
+      cacheable: false,
+    };
+    logCacheFinalityBypass(cache.log, payload, context.cacheFinality, "missing tx block");
+    return context;
+  }
+
+  const latestBlock = await readLatestBlockNumber(provider);
+  if (latestBlock === undefined) {
+    context.responseCache = false;
+    context.cacheFinality = {
+      required_confirmations: requiredConfirmations,
+      tx_block: txBlock,
+      cacheable: false,
+    };
+    logCacheFinalityBypass(cache.log, payload, context.cacheFinality, "missing latest block");
+    return context;
+  }
+
+  const confirmations = Math.max(0, latestBlock - txBlock + 1);
+  context.cacheFinality = {
+    required_confirmations: requiredConfirmations,
+    confirmations,
+    latest_block: latestBlock,
+    tx_block: txBlock,
+    cacheable: confirmations >= requiredConfirmations,
+  };
+
+  if (!context.cacheFinality.cacheable) {
+    context.responseCache = false;
+    logCacheFinalityBypass(cache.log, payload, context.cacheFinality);
+  }
+
+  return context;
+}
+
+async function readLatestBlockNumber(provider: JsonRpcProviderLike): Promise<number | undefined> {
+  try {
+    return hexToNumber(await provider.send("eth_blockNumber", []));
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveCacheMinConfirmations(chainId: number): number {
+  const raw = process.env.LLM_RESPONSE_CACHE_MIN_CONFIRMATIONS;
+  if (raw !== undefined) {
+    return normalizeNonNegativeInteger(Number(raw), DEFAULT_CACHE_MIN_CONFIRMATIONS_BY_CHAIN.get(chainId) ?? 0);
+  }
+
+  return DEFAULT_CACHE_MIN_CONFIRMATIONS_BY_CHAIN.get(chainId) ?? 0;
+}
+
+function normalizeNonNegativeInteger(value: number, defaultValue: number): number {
+  return Number.isInteger(value) && value >= 0 ? value : defaultValue;
+}
+
+function logCacheFinalityBypass(
+  enabled: boolean,
+  payload: AuditPayload,
+  finality: AuditRunnerCacheFinality,
+  reason = "insufficient confirmations",
+): void {
+  if (!enabled) {
+    return;
+  }
+
+  const confirmations = finality.confirmations === undefined ? "unknown" : String(finality.confirmations);
+  const latestBlock = finality.latest_block === undefined ? "unknown" : String(finality.latest_block);
+  const txBlock = finality.tx_block === undefined ? "unknown" : String(finality.tx_block);
+  console.error(
+    `[llm-cache] bypass-finality tx=${payload.tx_hash.slice(0, 12)} reason=${reason} confirmations=${confirmations}/${finality.required_confirmations} tx_block=${txBlock} latest_block=${latestBlock}`,
+  );
 }
 
 async function readJsonBodyOrEmpty(req: IncomingMessage): Promise<unknown> {

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect } from "chai";
@@ -54,6 +54,79 @@ describe("LLM response cache", function () {
     expect(cachedRefresh).to.deep.equal(refreshed);
   });
 
+  it("keeps cached responses indefinitely when TTL is 0", async function () {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return llmResponse(makeRawAuditOutput(5, `Network response ${calls}.`));
+    }) as typeof fetch;
+
+    const options = {
+      ...cacheOptions(),
+      responseCacheTtlSeconds: 0,
+    };
+
+    const first = await runLlmAudit(makePayload(), options);
+    await rewriteOnlyCacheEntry((entry) => ({
+      ...entry,
+      created_at: "1970-01-01T00:00:00.000Z",
+    }));
+    const second = await runLlmAudit(makePayload(), options);
+
+    expect(calls).to.equal(1);
+    expect(second).to.deep.equal(first);
+  });
+
+  it("expires cached responses when a positive TTL is configured", async function () {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return llmResponse(makeRawAuditOutput(5, `Network response ${calls}.`));
+    }) as typeof fetch;
+
+    const options = {
+      ...cacheOptions(),
+      responseCacheTtlSeconds: 1,
+    };
+
+    await runLlmAudit(makePayload(), options);
+    await rewriteOnlyCacheEntry((entry) => ({
+      ...entry,
+      created_at: "1970-01-01T00:00:00.000Z",
+    }));
+    const refreshed = await runLlmAudit(makePayload(), options);
+
+    expect(calls).to.equal(2);
+    expect(refreshed.overall_summary).to.equal("Network response 2.");
+  });
+
+  it("prunes least-recently-accessed entries above the max entry cap", async function () {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return llmResponse(makeRawAuditOutput(5, `Network response ${calls}.`));
+    }) as typeof fetch;
+
+    const options = {
+      ...cacheOptions(),
+      responseCacheMaxEntries: 2,
+    };
+
+    await runLlmAudit(makePayload("0xaaa"), options);
+    await sleep(10);
+    await runLlmAudit(makePayload("0xbbb"), options);
+    await sleep(10);
+    await runLlmAudit(makePayload("0xaaa"), options);
+    await sleep(10);
+    await runLlmAudit(makePayload("0xccc"), options);
+
+    expect(await countCacheEntries()).to.equal(2);
+    await runLlmAudit(makePayload("0xaaa"), options);
+    expect(calls).to.equal(3);
+    await runLlmAudit(makePayload("0xbbb"), options);
+    expect(calls).to.equal(4);
+  });
+
   it("places a stable user prompt prefix before transaction-specific payload data", async function () {
     const requests: Array<{ messages: Array<{ role: string; content: string }> }> = [];
     globalThis.fetch = (async (_input, init) => {
@@ -89,7 +162,23 @@ describe("LLM response cache", function () {
       cacheLog: false,
     };
   }
+
+  async function rewriteOnlyCacheEntry(mutator: (entry: Record<string, unknown>) => Record<string, unknown>) {
+    const files = (await readdir(cacheDir)).filter((file) => file.endsWith(".json"));
+    expect(files).to.have.length(1);
+    const path = join(cacheDir, files[0]);
+    const entry = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    await writeFile(path, `${JSON.stringify(mutator(entry), null, 2)}\n`, "utf8");
+  }
+
+  async function countCacheEntries() {
+    return (await readdir(cacheDir)).filter((file) => file.endsWith(".json")).length;
+  }
 });
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function makePayload(txHash = "0xabc"): AuditPayload {
   return {
