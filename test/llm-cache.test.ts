@@ -54,6 +54,33 @@ describe("LLM response cache", function () {
     expect(cachedRefresh).to.deep.equal(refreshed);
   });
 
+  it("places a stable user prompt prefix before transaction-specific payload data", async function () {
+    const requests: Array<{ messages: Array<{ role: string; content: string }> }> = [];
+    globalThis.fetch = (async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      return llmResponse(makeRawAuditOutput(5, "Network response."));
+    }) as typeof fetch;
+
+    await runLlmAudit(makePayload("0xabc"), {
+      ...cacheOptions(),
+      responseCache: false,
+    });
+    await runLlmAudit(makePayload("0xdef"), {
+      ...cacheOptions(),
+      responseCache: false,
+    });
+
+    const firstUserContent = requests[0]?.messages[1]?.content ?? "";
+    const secondUserContent = requests[1]?.messages[1]?.content ?? "";
+    const firstTxHashIndex = firstUserContent.indexOf('"tx_hash":"0xabc"');
+    const secondTxHashIndex = secondUserContent.indexOf('"tx_hash":"0xdef"');
+
+    expect(firstUserContent).to.contain("PAYLOAD_JSON:\n");
+    expect(firstTxHashIndex).to.be.greaterThan(firstUserContent.indexOf('"known_limitations"'));
+    expect(firstUserContent.indexOf('"raw_evidence"')).to.be.greaterThan(firstTxHashIndex);
+    expect(firstUserContent.slice(0, firstTxHashIndex)).to.equal(secondUserContent.slice(0, secondTxHashIndex));
+  });
+
   function cacheOptions() {
     return {
       baseUrl: "http://llm.test/v1",
@@ -64,11 +91,11 @@ describe("LLM response cache", function () {
   }
 });
 
-function makePayload(): AuditPayload {
+function makePayload(txHash = "0xabc"): AuditPayload {
   return {
     task: "post_transaction_audit",
     chain_id: 1,
-    tx_hash: "0xabc",
+    tx_hash: txHash,
     subject_address: "0x0000000000000000000000000000000000000001",
     raw_evidence: [],
     token_metadata: [],

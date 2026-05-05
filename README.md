@@ -23,6 +23,11 @@ Optional LLM response cache variables:
 - `LLM_RESPONSE_CACHE_FORCE_REFRESH`: set to `1` to bypass cache reads and overwrite entries.
 - `LLM_RESPONSE_CACHE_LOG`: logs cache hit/miss/store events by default. Set to `0` to quiet it.
 
+The LLM prompt is also laid out for endpoint-side prefix caching: the long
+system prompt and a stable user prelude come before the transaction payload,
+and high-cardinality fields such as `tx_hash` and `raw_evidence` are serialized
+near the end of the payload.
+
 ## Commands
 
 ```bash
