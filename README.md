@@ -286,3 +286,9 @@ The orchestrator does not modify either repo's contracts. The mapping from
 - LLM output JSON parse/schema/evidence validation.
 
 Out of scope for v1: ERC721, selector DB lookup, external labels, compliance lists, debug traces, internal call tree, and full state diff.
+
+## Few-shot Augmentation (deferred)
+
+[fixtures/few-shot-samples.json](fixtures/few-shot-samples.json) is a curated set of one canonical mainnet tx per risk category (failed tx, unlimited approval, missing slippage, hack exploit, hack recovery, sandwich victim, phishing drainer, MEV arbitrage, Permit2 drain, address poisoning, NFT setApprovalForAll, wallet drain) plus three negative anchors (plain ERC20/ERC721 transfer, balanced swap). Each entry carries a rationale for why that tx is the strongest demonstration of its category for prompt tuning.
+
+Not wired into the LLM call yet. The intended use is selective few-shot — prepend the negative-of-pipeline cases (phishing_drainer, address_poisoning, permit2_signature_drain, hack_recovery, wallet_drain) where rule signals do not fire, so the model learns to flag patterns the deterministic layer misses without bloating context with categories already covered by `rule_signals`.
