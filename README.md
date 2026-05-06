@@ -26,7 +26,7 @@ Optional LLM response cache variables:
 
 - `OPENAI_BASE_URL`: optional OpenAI API base URL override, defaulting to `https://api.openai.com/v1`.
 - `LLM_MAX_TOKENS_FIELD`: request token-limit field override. Defaults to `max_completion_tokens` for the official OpenAI API and `max_tokens` for local-compatible endpoints.
-- `LLM_REASONING_EFFORT`: optional Chat Completions `reasoning_effort` value. Leave unset to use the model default.
+- `LLM_REASONING_EFFORT`: optional Chat Completions `reasoning_effort` value. Set to `low` in demo deployments to reduce latency; leave unset to use the model default.
 - `LLM_PROMPT_CACHE_KEY`: optional OpenAI prompt cache routing key, defaulting to `post-audit-v1` for the official OpenAI API.
 - `LLM_PROMPT_CACHE_RETENTION`: optional OpenAI prompt cache retention, defaulting to `24h` for the official OpenAI API.
 - `LLM_USAGE_LOG`: logs OpenAI token usage and `cached_tokens` by default. Set to `0` to quiet it.
@@ -40,6 +40,8 @@ Optional LLM response cache variables:
 - `LLM_RESPONSE_CACHE_FINALITY_WAIT_TIMEOUT_MS`: maximum API wait for required confirmations, defaulting to `180000`.
 - `LLM_RESPONSE_CACHE_FINALITY_POLL_MS`: block/receipt polling interval while waiting for finality, defaulting to `2000`.
 - `LLM_RESPONSE_CACHE_LOG`: logs cache hit/miss/store events by default. Set to `0` to quiet it.
+- `SCENARIO_PRIORITY_FEE_GWEI`: minimum priority fee for live Sepolia scenario transactions, defaulting to `0.01`.
+- `SCENARIO_MAX_FEE_FLOOR_GWEI`: minimum EIP-1559 max fee for live Sepolia scenario transactions, defaulting to `0.1`.
 
 The LLM prompt is also laid out for endpoint-side prefix caching: fixed audit
 instructions live in the system message, while the user message contains only

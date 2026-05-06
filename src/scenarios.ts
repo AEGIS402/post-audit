@@ -7,10 +7,13 @@ import {
   Wallet,
   encodeBytes32String,
   formatEther,
+  formatUnits,
   id,
   keccak256,
   parseEther,
+  parseUnits,
   toUtf8Bytes,
+  type TransactionRequest,
 } from "ethers";
 import { aegisEscrowInterface } from "./abis.js";
 import { buildAuditPayload } from "./payload.js";
@@ -33,6 +36,8 @@ const ESCROW_STATE_READ_TIMEOUT_MS = 30_000;
 const ESCROW_STATE_READ_POLL_MS = 1_000;
 const AUDIT_ACTION_RELEASE = 0;
 const AUDIT_ACTION_BLOCK_AND_CLAIM = 1;
+const DEFAULT_SCENARIO_PRIORITY_FEE_GWEI = "0.01";
+const DEFAULT_SCENARIO_MAX_FEE_FLOOR_GWEI = "0.1";
 
 const ERC20_ABI = [
   "function mint(address to, uint256 amount)",
@@ -88,6 +93,7 @@ type WaitableTx = {
   hash?: string;
   wait: () => Promise<any>;
 };
+type ScenarioTxFeeOverrides = Pick<TransactionRequest, "gasPrice" | "maxFeePerGas" | "maxPriorityFeePerGas">;
 
 export interface ScenarioOptions {
   amountIn?: string;
@@ -219,6 +225,62 @@ function isNonceTooLowError(error: unknown): boolean {
   return errorText(error).toLowerCase().includes("nonce too low");
 }
 
+async function buildScenarioTxFeeOverrides(
+  provider: unknown,
+  log: (msg: string) => void,
+): Promise<ScenarioTxFeeOverrides> {
+  const priorityFeeFloor = readGweiEnv("SCENARIO_PRIORITY_FEE_GWEI", DEFAULT_SCENARIO_PRIORITY_FEE_GWEI);
+  const maxFeeFloor = readGweiEnv("SCENARIO_MAX_FEE_FLOOR_GWEI", DEFAULT_SCENARIO_MAX_FEE_FLOOR_GWEI);
+  const feeProvider = provider as {
+    getFeeData?: () => Promise<{
+      gasPrice?: bigint | null;
+      maxFeePerGas?: bigint | null;
+      maxPriorityFeePerGas?: bigint | null;
+    }>;
+  };
+
+  if (typeof feeProvider.getFeeData !== "function") {
+    log("tx fee bump: provider fee data unavailable; using provider defaults");
+    return {};
+  }
+
+  const feeData = await feeProvider.getFeeData();
+  if (feeData.maxFeePerGas !== null && feeData.maxFeePerGas !== undefined) {
+    const maxPriorityFeePerGas = maxBigint(feeData.maxPriorityFeePerGas ?? 0n, priorityFeeFloor);
+    const maxFeePerGas = maxBigint(feeData.maxFeePerGas, maxFeeFloor, maxPriorityFeePerGas);
+    log(
+      `tx fee bump: maxPriorityFeePerGas=${formatUnits(maxPriorityFeePerGas, "gwei")} gwei maxFeePerGas=${formatUnits(maxFeePerGas, "gwei")} gwei`,
+    );
+    return { maxFeePerGas, maxPriorityFeePerGas };
+  }
+
+  if (feeData.gasPrice !== null && feeData.gasPrice !== undefined) {
+    const gasPrice = maxBigint(feeData.gasPrice, maxFeeFloor);
+    log(`tx fee bump: gasPrice=${formatUnits(gasPrice, "gwei")} gwei`);
+    return { gasPrice };
+  }
+
+  log("tx fee bump: RPC returned no fee data; using provider defaults");
+  return {};
+}
+
+function readGweiEnv(name: string, fallback: string): bigint {
+  const raw = process.env[name] ?? fallback;
+  try {
+    const value = parseUnits(raw.trim(), "gwei");
+    if (value < 0n) {
+      throw new Error("negative");
+    }
+    return value;
+  } catch {
+    throw new Error(`${name} must be a non-negative gwei value`);
+  }
+}
+
+function maxBigint(first: bigint, ...rest: bigint[]): bigint {
+  return rest.reduce((max, value) => (value > max ? value : max), first);
+}
+
 async function sendManagedTransaction<T extends WaitableTx>(
   account: ManagedAccount,
   label: string,
@@ -245,6 +307,7 @@ async function ensureMintedBalanceAndApproval(
   tokenSymbol: string,
   label: string,
   log: (msg: string) => void,
+  txFees: ScenarioTxFeeOverrides,
 ): Promise<void> {
   const tokenAsSigner = token.connect(account.signer as Signer) as AnyContract;
   const targetBalance = requiredSpend * TOKEN_BALANCE_HEADROOM_MULTIPLIER;
@@ -256,14 +319,14 @@ async function ensureMintedBalanceAndApproval(
       `${label}: ${tokenSymbol} balance ${formatEther(balance)} below ${formatEther(requiredSpend)} required; minting ${formatEther(mintAmount)} to reach ${formatEther(targetBalance)} buffer`,
     );
     const mintTx = await sendManagedTransaction(account, `${label} mint`, log, () =>
-      tokenAsSigner.mint(account.address, mintAmount),
+      tokenAsSigner.mint(account.address, mintAmount, txFees),
     );
     await mintTx.wait();
   } else {
     log(`${label}: ${tokenSymbol} balance ${formatEther(balance)} covers ${formatEther(requiredSpend)} required; skip mint`);
   }
 
-  await ensureTokenApproval(token, account, spender, requiredSpend, tokenSymbol, label, log);
+  await ensureTokenApproval(token, account, spender, requiredSpend, tokenSymbol, label, log, txFees);
 }
 
 async function ensureTokenApproval(
@@ -274,6 +337,7 @@ async function ensureTokenApproval(
   tokenSymbol: string,
   label: string,
   log: (msg: string) => void,
+  txFees: ScenarioTxFeeOverrides,
 ): Promise<void> {
   const allowance: bigint = await token.allowance(account.address, spender);
   if (allowance >= requiredSpend) {
@@ -284,7 +348,7 @@ async function ensureTokenApproval(
   const tokenAsSigner = token.connect(account.signer as Signer) as AnyContract;
   log(`${label}: ${tokenSymbol} allowance ${formatEther(allowance)} below ${formatEther(requiredSpend)}; approving max`);
   const approveTx = await sendManagedTransaction(account, `${label} approve`, log, () =>
-    tokenAsSigner.approve(spender, MAX_UINT256),
+    tokenAsSigner.approve(spender, MAX_UINT256, txFees),
   );
   await approveTx.wait();
 }
@@ -297,6 +361,7 @@ async function plainSwap(
   amountIn: bigint,
   sqrtPriceLimit: bigint,
   log: (msg: string) => void,
+  txFees: ScenarioTxFeeOverrides,
 ): Promise<void> {
   const swapper = poolSwapTest.connect(trader.signer as Signer) as AnyContract;
   const tx = await sendManagedTransaction(trader, "plain swap", log, () =>
@@ -305,7 +370,7 @@ async function plainSwap(
       { zeroForOne, amountSpecified: -amountIn, sqrtPriceLimitX96: sqrtPriceLimit },
       { takeClaims: false, settleUsingBurn: false },
       "0x",
-      { gasLimit: 4_000_000 },
+      { ...txFees, gasLimit: 4_000_000 },
     ),
   );
   await tx.wait();
@@ -404,6 +469,7 @@ export async function runScenarioLive(args: {
         `scenario endpoints only work on Sepolia (chainId=${SEPOLIA_CHAIN_ID}); current=${chainId.toString()}`,
       );
     }
+    const txFees = await buildScenarioTxFeeOverrides(ethersProvider, log);
 
     const auditor = managedAccount(args.ownerKey, ethersProvider);
     const trader = managedAccount(args.traderKey, ethersProvider);
@@ -455,6 +521,7 @@ export async function runScenarioLive(args: {
       "USDT",
       "protected swap",
       log,
+      txFees,
     );
 
     let quotedOutput: bigint | undefined;
@@ -467,6 +534,7 @@ export async function runScenarioLive(args: {
         "USDT",
         "quote",
         log,
+        txFees,
       );
       quotedOutput = await quotePoolSwapOutput({
         poolSwapTest,
@@ -497,9 +565,10 @@ export async function runScenarioLive(args: {
         "USDT",
         "front-run",
         log,
+        txFees,
       );
       const aegisBefore: bigint = await aegis.balanceOf(attacker.address);
-      await plainSwap(poolSwapTest, attacker, poolKey, usdtIsZero, attackAmount, usdtToAegisLimit, log);
+      await plainSwap(poolSwapTest, attacker, poolKey, usdtIsZero, attackAmount, usdtToAegisLimit, log, txFees);
       const aegisAfter: bigint = await aegis.balanceOf(attacker.address);
       attackerBackRunAegis = aegisAfter - aegisBefore;
       log(`front-run filled: trader received ${formatEther(attackerBackRunAegis)} AEGIS`);
@@ -511,6 +580,7 @@ export async function runScenarioLive(args: {
         "AEGIS",
         "back-run",
         log,
+        txFees,
       );
     }
 
@@ -527,7 +597,7 @@ export async function runScenarioLive(args: {
           tradeId,
           settlementRecipient: user.address,
         },
-        { gasLimit: 4_000_000 },
+        { ...txFees, gasLimit: 4_000_000 },
       ),
     );
     const swapReceipt = await swapTx.wait();
@@ -535,7 +605,7 @@ export async function runScenarioLive(args: {
 
     if (args.scenario === "sandwich" && attacker && attackerBackRunAegis > 0n) {
       log(`back-run: attacker swaps ${formatEther(attackerBackRunAegis)} AEGIS -> USDT`);
-      await plainSwap(poolSwapTest, attacker, poolKey, !usdtIsZero, attackerBackRunAegis, aegisToUsdtLimit, log);
+      await plainSwap(poolSwapTest, attacker, poolKey, !usdtIsZero, attackerBackRunAegis, aegisToUsdtLimit, log, txFees);
     }
 
     const escrowRegistered = decodeEscrowRegisteredEvent(swapReceipt, vault.target as string);
@@ -563,7 +633,7 @@ export async function runScenarioLive(args: {
     const decisionTx = await sendManagedTransaction(auditor, "audit decision", log, () =>
       vaultAsAuditor.executeAuditDecision(
         { escrowId: tradeId, action, reason, evidenceHash, actionData: "0x" },
-        { gasLimit: 1_000_000 },
+        { ...txFees, gasLimit: 1_000_000 },
       ),
     );
     const decisionReceipt = await decisionTx.wait();
