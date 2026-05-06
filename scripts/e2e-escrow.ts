@@ -102,11 +102,8 @@ interface Ctx {
 }
 
 function severityToAction(severity: string): typeof AUDIT_ACTION_RELEASE | typeof AUDIT_ACTION_BLOCK_AND_CLAIM {
-  if (severity === "high" || severity === "critical") {
+  if (severity === "medium" || severity === "high" || severity === "critical") {
     return AUDIT_ACTION_BLOCK_AND_CLAIM;
-  }
-  if (severity === "medium") {
-    process.stderr.write(`[severity=medium] auto-RELEASE for demo; production should require human review\n`);
   }
   return AUDIT_ACTION_RELEASE;
 }
@@ -357,7 +354,7 @@ async function main(): Promise<void> {
     severityToActionPolicy: {
       info: "RELEASE",
       low: "RELEASE",
-      medium: "RELEASE (with stderr warning; prod should require human review)",
+      medium: "BLOCK_AND_CLAIM",
       high: "BLOCK_AND_CLAIM",
       critical: "BLOCK_AND_CLAIM",
     },

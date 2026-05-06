@@ -680,7 +680,22 @@ function addProtectedSwapShortfallSignal(signals: RuleSignal[], events: DecodedE
       continue;
     }
     if (outputBig >= expectedBig) {
-      // Met or exceeded user expectation; no shortfall.
+      signals.push({
+        signal_id: `sig#${signals.length}`,
+        type: "protected_swap_output_met",
+        severity_hint: "info",
+        description:
+          `AEGIS protected swap escrow output is ${event.decoded.output_amount_human ?? outputRaw} ` +
+          `against user-stated expected output ${event.decoded.expected_output_human ?? expectedRaw}; ` +
+          "the output met or exceeded the user's expectation.",
+        computed: {
+          output_amount_raw: outputRaw,
+          expected_output_raw: expectedRaw,
+          output_vs_expected_ratio: event.decoded.output_vs_expected_ratio ?? undefined,
+          output_shortfall_pct: event.decoded.output_shortfall_pct ?? undefined,
+        },
+        evidence_refs: [event.event_id],
+      });
       continue;
     }
 
@@ -694,7 +709,23 @@ function addProtectedSwapShortfallSignal(signals: RuleSignal[], events: DecodedE
     } else if (shortfallPctNumber >= 5) {
       severityHint = "medium";
     } else {
-      // Within normal slippage tolerance.
+      signals.push({
+        signal_id: `sig#${signals.length}`,
+        type: "protected_swap_output_within_tolerance",
+        severity_hint: "info",
+        description:
+          `AEGIS protected swap escrow output is ${event.decoded.output_amount_human ?? outputRaw} ` +
+          `against user-stated expected output ${event.decoded.expected_output_human ?? expectedRaw} ` +
+          `(${formatRatio(shortfallPctNumber, 2)}% shortfall), which is within the local tolerance.`,
+        computed: {
+          output_amount_raw: outputRaw,
+          expected_output_raw: expectedRaw,
+          shortfall_raw: shortfallBig.toString(),
+          shortfall_pct: `${formatRatio(shortfallPctNumber, 2)}%`,
+          output_vs_expected_ratio: event.decoded.output_vs_expected_ratio ?? undefined,
+        },
+        evidence_refs: [event.event_id],
+      });
       continue;
     }
 
